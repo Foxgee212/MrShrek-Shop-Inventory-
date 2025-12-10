@@ -1,7 +1,7 @@
-import { dbConnect } from "@/lib/dbConnect";
-import PurchaseOrder from "@/models/PurchaseOrder";
-import { verifyTokenFromReq } from "@/lib/auth";
-import ActivityLog from "@/models/ActivityLog";
+import { dbConnect } from "../../../lib/dbConnect";
+import PurchaseOrder from "../../../models/PurchaseOrder";
+import { verifyTokenFromReq } from "../../../lib/auth";
+import ActivityLog from "../../../models/ActivityLog";
 
 export async function GET(req) {
   await dbConnect();

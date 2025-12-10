@@ -1,7 +1,7 @@
-import Item from "@/models/Item";
-import User from "@/models/User";
-import Sale from "@/models/Sale";
-import { dbConnect } from "@/lib/dbConnect";
+import Item from "../../../../models/Item";
+import User from "../../../../models/User";
+import Sale from "../../../../models/Sale";
+import { dbConnect } from "../../../../lib/dbConnect";
 
 export async function GET() {
   await dbConnect();

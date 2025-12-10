@@ -1,7 +1,7 @@
-import { dbConnect } from "@/lib/dbConnect.js";
-import User from "@/models/User.js";
+import { dbConnect } from "../../../../lib/dbConnect.js";
+import User from "../../../../models/User.js";
 import bcrypt from "bcryptjs";
-import { verifyTokenFromReq } from "@/lib/auth.js";
+import { verifyTokenFromReq } from "../../../../lib/auth.js";
 
 export async function POST(req) {
      await dbConnect();

@@ -1,5 +1,5 @@
 import Item from "@/models/Item";
-import { dbConnect } from "@/lib/dbConnect";
+import { dbConnect } from "../../../../lib/dbConnect";
 
 export async function PUT(req) {
     await dbConnect();

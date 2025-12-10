@@ -1,8 +1,8 @@
-import { dbConnect } from "@/lib/db";
-import Item from "@/models/Item";
-import Sale from "@/models/Sale";
-import ActivityLog from "@/models/ActivityLog";
-import { verifyTokenFromReq } from "@/lib/auth";
+import { dbConnect } from "../../../lib/dbConnect";
+import Item from "../../../models/Item";
+import Sale from "../../../models/Sale";
+import ActivityLog from "../../../models/ActivityLog";
+import { verifyTokenFromReq } from "../../../lib/auth";
 
 export async function POST(req) {
   await dbConnect();
