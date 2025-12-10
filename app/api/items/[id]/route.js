@@ -1,4 +1,3 @@
-import { getUserFromToken } from "@/lib/getUserFromToken";
 import Item from "@/models/Item";
 import { dbConnect } from "@/lib/dbConnect";
 
