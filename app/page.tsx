@@ -16,7 +16,6 @@ export default function LoginPage() {
     });
 
     const data = await res.json();
-    console.log(document.cookie); // check token
 
     if (!res.ok) {
       setError(data.error);
