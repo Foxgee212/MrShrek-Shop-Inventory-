@@ -52,7 +52,7 @@ export default function AdminDashboard() {
       {/* MANAGEMENT LINKS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         
-        <Link href="/inventory" className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50">
+        <Link href="/store" className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50">
           <h3 className="text-xl font-bold">Inventory Management</h3>
           <p>Add, edit, and delete products.</p>
         </Link>
