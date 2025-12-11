@@ -2,12 +2,15 @@
 
 import { useState, useEffect } from "react";
 import jwt from "jsonwebtoken";
+import { Plus, Edit2, Trash2, Search, Image as ImageIcon, Box, X } from "lucide-react";
 
 export default function InventoryPage() {
   const [items, setItems] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [role, setRole] = useState<"admin" | "staff" | null>(null);
+  const [image, setImage] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
 
   // Form fields
   const [name, setName] = useState("");
@@ -22,7 +25,10 @@ export default function InventoryPage() {
 
   // Detect role from token
   useEffect(() => {
-    const token = document.cookie.split("; ").find(c => c.startsWith("token="))?.split("=")[1];
+    const token = document.cookie
+      .split("; ")
+      .find(c => c.startsWith("token="))
+      ?.split("=")[1];
     if (token) {
       try {
         const decoded: any = jwt.decode(token);
@@ -49,31 +55,46 @@ export default function InventoryPage() {
     e.preventDefault();
     if (role !== "admin") return;
 
-    const token = document.cookie.split("; ").find(c => c.startsWith("token="))?.split("=")[1];
+    const token = document.cookie
+      .split("; ")
+      .find(c => c.startsWith("token="))
+      ?.split("=")[1];
+
+    const formData = new FormData();
+    formData.append("name", name);
+    formData.append("category", category);
+    formData.append("brand", brand);
+    formData.append("type", type);
+    formData.append("model", model);
+    formData.append("stock", stock);
+    formData.append("costPrice", costPrice);
+    formData.append("sellingPrice", sellingPrice);
+    formData.append("description", description);
+    if (image) formData.append("image", image);
 
     const res = await fetch("/api/items", {
       method: "POST",
+      body: formData,
       headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({
-        name,
-        category,
-        brand,
-        type,
-        model,
-        stock: Number(stock),
-        costPrice: Number(costPrice),
-        sellingPrice: Number(sellingPrice),
-        description
-      })
     });
 
     if (res.ok) {
       setShowModal(false);
-      setName(""); setCategory(""); setBrand(""); setType(""); setModel("");
-      setStock(""); setCostPrice(""); setSellingPrice(""); setDescription("");
+      setImage(null);
+      setPreview(null);
+
+      setName("");
+      setCategory("");
+      setBrand("");
+      setType("");
+      setModel("");
+      setStock("");
+      setCostPrice("");
+      setSellingPrice("");
+      setDescription("");
+
       loadInventory();
     } else {
       const err = await res.json();
@@ -96,26 +117,34 @@ export default function InventoryPage() {
 
   return (
     <div className="p-6 text-gray-900">
+      {/* Header */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">📦 Inventory</h1>
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <Box size={24} /> Inventory
+        </h1>
 
         {role === "admin" && (
           <button
             onClick={() => setShowModal(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded"
+            className="bg-blue-600 text-white px-4 py-2 rounded flex items-center gap-1"
           >
-            + Add Item
+            <Plus size={16} /> Add Item
           </button>
         )}
       </div>
 
-      <input
-        type="text"
-        placeholder="Search item..."
-        className="border p-2 w-full mb-4 rounded"
-        onChange={(e) => setSearch(e.target.value)}
-      />
+      {/* Search */}
+      <div className="relative mb-4">
+        <Search size={18} className="absolute left-2 top-2 text-gray-400" />
+        <input
+          type="text"
+          placeholder="Search item..."
+          className="border p-2 pl-8 w-full rounded"
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
 
+      {/* Inventory table */}
       <div className="overflow-x-auto">
         <table className="min-w-full bg-white shadow rounded">
           <thead>
@@ -144,13 +173,15 @@ export default function InventoryPage() {
                 <td className="p-3">₦{item.costPrice}</td>
                 <td className="p-3">₦{item.sellingPrice}</td>
                 {role === "admin" && (
-                  <td className="p-3">
-                    <button className="text-blue-600 mr-3">Edit</button>
+                  <td className="p-3 flex gap-2">
+                    <button className="text-blue-600 flex items-center gap-1">
+                      <Edit2 size={16} /> Edit
+                    </button>
                     <button
-                      className="text-red-600"
+                      className="text-red-600 flex items-center gap-1"
                       onClick={() => handleDelete(item._id)}
                     >
-                      Delete
+                      <Trash2 size={16} /> Delete
                     </button>
                   </td>
                 )}
@@ -159,7 +190,10 @@ export default function InventoryPage() {
 
             {filteredItems.length === 0 && (
               <tr>
-                <td className="p-4 text-center text-gray-400" colSpan={role === "admin" ? 9 : 8}>
+                <td
+                  className="p-4 text-center text-gray-400"
+                  colSpan={role === "admin" ? 9 : 8}
+                >
                   No items found
                 </td>
               </tr>
@@ -170,26 +204,120 @@ export default function InventoryPage() {
 
       {/* Add Modal (admin only) */}
       {showModal && role === "admin" && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center">
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded shadow-lg w-96">
-            <h2 className="text-xl font-bold mb-4">Add New Item</h2>
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <Plus size={20} /> Add New Item
+            </h2>
 
-            <form onSubmit={handleAdd}>
-              <input className="border p-2 w-full mb-2 rounded" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
-              <input className="border p-2 w-full mb-2 rounded" placeholder="Category" value={category} onChange={(e) => setCategory(e.target.value)} />
-              <input className="border p-2 w-full mb-2 rounded" placeholder="Brand" value={brand} onChange={(e) => setBrand(e.target.value)} />
-              <input className="border p-2 w-full mb-2 rounded" placeholder="Type" value={type} onChange={(e) => setType(e.target.value)} />
-              <input className="border p-2 w-full mb-2 rounded" placeholder="Model" value={model} onChange={(e) => setModel(e.target.value)} />
-              <input className="border p-2 w-full mb-2 rounded" placeholder="Stock" type="number" value={stock} onChange={(e) => setStock(e.target.value)} />
-              <input className="border p-2 w-full mb-2 rounded" placeholder="Cost Price" type="number" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} />
-              <input className="border p-2 w-full mb-4 rounded" placeholder="Selling Price" type="number" value={sellingPrice} onChange={(e) => setSellingPrice(e.target.value)} />
-              <textarea className="border p-2 w-full mb-4 rounded" placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
+            <form onSubmit={handleAdd} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <input
+                className="border p-2 rounded"
+                placeholder="Name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+              <input
+                className="border p-2 rounded"
+                placeholder="Category"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              />
+              <input
+                className="border p-2 rounded"
+                placeholder="Brand"
+                value={brand}
+                onChange={(e) => setBrand(e.target.value)}
+              />
+              <input
+                className="border p-2 rounded"
+                placeholder="Type"
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+              />
+              <input
+                className="border p-2 rounded"
+                placeholder="Model"
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+              />
+              <input
+                className="border p-2 rounded"
+                placeholder="Stock"
+                type="number"
+                value={stock}
+                onChange={(e) => setStock(e.target.value)}
+              />
+              <input
+                className="border p-2 rounded"
+                placeholder="Cost Price"
+                type="number"
+                value={costPrice}
+                onChange={(e) => setCostPrice(e.target.value)}
+              />
+              <input
+                className="border p-2 rounded"
+                placeholder="Selling Price"
+                type="number"
+                value={sellingPrice}
+                onChange={(e) => setSellingPrice(e.target.value)}
+              />
 
-              <div className="flex justify-end space-x-3">
-                <button type="button" onClick={() => setShowModal(false)} className="px-3 py-1 border rounded">Cancel</button>
-                <button type="submit" className="bg-blue-600 text-white px-4 py-1 rounded">Add</button>
+              {/* Image upload spans full width */}
+              <div className="md:col-span-2">
+                <label htmlFor="item-image" className="block text-sm font-medium mb-1 flex items-center gap-1">
+                  <ImageIcon size={16} /> Image Upload
+                </label>
+                <input
+                  id="item-image"
+                  type="file"
+                  accept="image/*"
+                  className="border p-2 w-full rounded mb-2"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    setImage(file);
+                    if (file) setPreview(URL.createObjectURL(file));
+                  }}
+                />
+                {preview ? (
+                  <img
+                    src={preview}
+                    alt="Preview"
+                    className="w-full h-32 object-cover rounded mb-2"
+                  />
+                ) : (
+                  <div className="w-full h-32 bg-gray-100 flex items-center justify-center rounded mb-2 text-gray-400">
+                    <ImageIcon size={32} />
+                  </div>
+                )}
+              </div>
+
+              {/* Description spans full width */}
+              <textarea
+                className="border p-2 w-full rounded md:col-span-2"
+                placeholder="Description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+
+              {/* Buttons */}
+              <div className="flex justify-end gap-2 md:col-span-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="px-3 py-1 border rounded flex items-center gap-1"
+                >
+                  <X size={16} /> Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="bg-blue-600 text-white px-4 py-1 rounded flex items-center gap-1"
+                >
+                  <Plus size={16} /> Add
+                </button>
               </div>
             </form>
+
           </div>
         </div>
       )}

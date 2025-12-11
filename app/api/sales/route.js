@@ -17,6 +17,9 @@ export async function POST(req) {
     if (item.stock < quantity) {
       return new Response(JSON.stringify({ error: "Not enough stock" }), { status: 400 });
     }
+    if (quantity <= 0) {
+      return new Response(JSON.stringify({ error: "Quantity must be greater than zero" }), { status: 400 });
+    }
 
     item.stock -= quantity;
     await item.save();

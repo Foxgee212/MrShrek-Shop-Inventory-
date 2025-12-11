@@ -1,24 +1,31 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [remember, setRemember] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
 
+    if (loading) return;
+    setLoading(true);
+    setError("");
+
     const res = await fetch("/api/auth/login", {
       method: "POST",
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, remember }),
       headers: { "Content-Type": "application/json" }
     });
 
     const data = await res.json();
+    setLoading(false);
 
     if (!res.ok) {
       setError(data.error || "Login failed");
@@ -38,7 +45,7 @@ export default function LoginPage() {
         onSubmit={handleLogin}
         className="bg-white w-full max-w-sm p-6 rounded-2xl shadow-xl"
       >
-        <h1 className="text-2xl font-bold text-center mb-6">POS Login</h1>
+        <h1 className="text-2xl font-bold text-center mb-6">MrShrek Store Login</h1>
 
         {error && (
           <p className="bg-red-100 text-red-600 text-sm p-2 rounded mb-4 text-center">
@@ -66,7 +73,7 @@ export default function LoginPage() {
         </div>
 
         {/* Password */}
-        <div className="mb-5">
+        <div className="mb-4">
           <label htmlFor="password" className="text-sm text-gray-600 block mb-1">
             Password
           </label>
@@ -93,16 +100,33 @@ export default function LoginPage() {
           </div>
         </div>
 
+        {/* Remember me */}
+        <div className="flex items-center justify-between text-sm mb-5">
+          <label className="flex items-center gap-2 text-gray-600">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={() => setRemember(!remember)}
+            />
+            Remember me
+          </label>
+
+          <span className="text-blue-600 cursor-pointer hover:underline">
+            Forgot password?
+          </span>
+        </div>
+
         {/* Submit */}
         <button
           type="submit"
-          className="w-full bg-blue-600 hover:bg-blue-700 transition text-white py-2 rounded-lg font-medium"
+          disabled={loading}
+          className="w-full bg-blue-600 hover:bg-blue-700 transition text-white py-2 rounded-lg font-medium flex items-center justify-center"
         >
-          Login
+          {loading && <Loader2 className="animate-spin mr-2" size={18} />}
+          {loading ? "Signing in..." : "Login"}
         </button>
 
-        {/* Footer */}
-        <div className="text-center mt-4 text-sm text-gray-500">
+        <div className="text-center mt-4 text-xs text-gray-400">
           Secure POS Access
         </div>
       </form>
