@@ -11,6 +11,8 @@ export default function InventoryPage() {
   const [role, setRole] = useState<"admin" | "staff" | null>(null);
   const [image, setImage] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [editingItem, setEditingItem] = useState<any>(null);
+  const [isEditing, setIsEditing] = useState(false);
 
   // Form fields
   const [name, setName] = useState("");
@@ -50,7 +52,25 @@ export default function InventoryPage() {
     loadInventory();
   }, []);
 
-  // Add item (admins only)
+  // Start editing
+  function handleEdit(item: any) {
+    setEditingItem(item);
+    setIsEditing(true);
+    setShowModal(true);
+
+    setName(item.name);
+    setCategory(item.category);
+    setBrand(item.brand);
+    setType(item.type);
+    setModel(item.model);
+    setStock(item.stock);
+    setCostPrice(item.costPrice);
+    setSellingPrice(item.sellingPrice);
+    setDescription(item.description);
+    setPreview(item.imageUrl || null);
+  }
+
+  // Add new item
   async function handleAdd(e: any) {
     e.preventDefault();
     if (role !== "admin") return;
@@ -81,20 +101,7 @@ export default function InventoryPage() {
     });
 
     if (res.ok) {
-      setShowModal(false);
-      setImage(null);
-      setPreview(null);
-
-      setName("");
-      setCategory("");
-      setBrand("");
-      setType("");
-      setModel("");
-      setStock("");
-      setCostPrice("");
-      setSellingPrice("");
-      setDescription("");
-
+      resetForm();
       loadInventory();
     } else {
       const err = await res.json();
@@ -102,13 +109,70 @@ export default function InventoryPage() {
     }
   }
 
-  // Delete item (admins only)
+  // Update item
+  async function handleUpdate(e: any) {
+    e.preventDefault();
+    if (role !== "admin") return;
+
+    const token = document.cookie
+      .split("; ")
+      .find(c => c.startsWith("token="))
+      ?.split("=")[1];
+
+    const formData = new FormData();
+    formData.append("name", name);
+    formData.append("category", category);
+    formData.append("brand", brand);
+    formData.append("type", type);
+    formData.append("model", model);
+    formData.append("stock", stock);
+    formData.append("costPrice", costPrice);
+    formData.append("sellingPrice", sellingPrice);
+    formData.append("description", description);
+    if (image) formData.append("image", image);
+
+    const res = await fetch(`/api/items/${editingItem._id}`, {
+      method: "PUT",
+      body: formData,
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (res.ok) {
+      resetForm();
+      loadInventory();
+    } else {
+      const err = await res.json();
+      alert(err.error);
+    }
+  }
+
+  // Delete item
   async function handleDelete(id: string) {
     if (role !== "admin") return;
     if (!confirm("Delete this item?")) return;
 
     await fetch(`/api/items/${id}`, { method: "DELETE", credentials: "include" });
     loadInventory();
+  }
+
+  // Reset form
+  function resetForm() {
+    setShowModal(false);
+    setIsEditing(false);
+    setEditingItem(null);
+    setImage(null);
+    setPreview(null);
+    setName("");
+    setCategory("");
+    setBrand("");
+    setType("");
+    setModel("");
+    setStock("");
+    setCostPrice("");
+    setSellingPrice("");
+    setDescription("");
   }
 
   const filteredItems = items.filter((i) =>
@@ -125,7 +189,7 @@ export default function InventoryPage() {
 
         {role === "admin" && (
           <button
-            onClick={() => setShowModal(true)}
+            onClick={() => { resetForm(); setShowModal(true); }}
             className="bg-blue-600 text-white px-4 py-2 rounded flex items-center gap-1"
           >
             <Plus size={16} /> Add Item
@@ -160,7 +224,6 @@ export default function InventoryPage() {
               {role === "admin" && <th className="p-3">Actions</th>}
             </tr>
           </thead>
-
           <tbody>
             {filteredItems.map((item) => (
               <tr key={item._id} className="border-b">
@@ -174,7 +237,10 @@ export default function InventoryPage() {
                 <td className="p-3">₦{item.sellingPrice}</td>
                 {role === "admin" && (
                   <td className="p-3 flex gap-2">
-                    <button className="text-blue-600 flex items-center gap-1">
+                    <button
+                      className="text-blue-600 flex items-center gap-1"
+                      onClick={() => handleEdit(item)}
+                    >
                       <Edit2 size={16} /> Edit
                     </button>
                     <button
@@ -187,7 +253,6 @@ export default function InventoryPage() {
                 )}
               </tr>
             ))}
-
             {filteredItems.length === 0 && (
               <tr>
                 <td
@@ -202,68 +267,29 @@ export default function InventoryPage() {
         </table>
       </div>
 
-      {/* Add Modal (admin only) */}
+      {/* Add/Edit Modal */}
       {showModal && role === "admin" && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded shadow-lg w-96">
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <Plus size={20} /> Add New Item
+              {isEditing ? <Edit2 size={20} /> : <Plus size={20} />}{" "}
+              {isEditing ? "Edit Item" : "Add New Item"}
             </h2>
 
-            <form onSubmit={handleAdd} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <input
-                className="border p-2 rounded"
-                placeholder="Name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-              <input
-                className="border p-2 rounded"
-                placeholder="Category"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              />
-              <input
-                className="border p-2 rounded"
-                placeholder="Brand"
-                value={brand}
-                onChange={(e) => setBrand(e.target.value)}
-              />
-              <input
-                className="border p-2 rounded"
-                placeholder="Type"
-                value={type}
-                onChange={(e) => setType(e.target.value)}
-              />
-              <input
-                className="border p-2 rounded"
-                placeholder="Model"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-              />
-              <input
-                className="border p-2 rounded"
-                placeholder="Stock"
-                type="number"
-                value={stock}
-                onChange={(e) => setStock(e.target.value)}
-              />
-              <input
-                className="border p-2 rounded"
-                placeholder="Cost Price"
-                type="number"
-                value={costPrice}
-                onChange={(e) => setCostPrice(e.target.value)}
-              />
-              <input
-                className="border p-2 rounded"
-                placeholder="Selling Price"
-                type="number"
-                value={sellingPrice}
-                onChange={(e) => setSellingPrice(e.target.value)}
-              />
+            <form
+              onSubmit={isEditing ? handleUpdate : handleAdd}
+              className="grid grid-cols-1 md:grid-cols-2 gap-4"
+            >
+              <input className="border p-2 rounded" placeholder="Name" value={name} onChange={e => setName(e.target.value)} />
+              <input className="border p-2 rounded" placeholder="Category" value={category} onChange={e => setCategory(e.target.value)} />
+              <input className="border p-2 rounded" placeholder="Brand" value={brand} onChange={e => setBrand(e.target.value)} />
+              <input className="border p-2 rounded" placeholder="Type" value={type} onChange={e => setType(e.target.value)} />
+              <input className="border p-2 rounded" placeholder="Model" value={model} onChange={e => setModel(e.target.value)} />
+              <input className="border p-2 rounded" placeholder="Stock" type="number" value={stock} onChange={e => setStock(e.target.value)} />
+              <input className="border p-2 rounded" placeholder="Cost Price" type="number" value={costPrice} onChange={e => setCostPrice(e.target.value)} />
+              <input className="border p-2 rounded" placeholder="Selling Price" type="number" value={sellingPrice} onChange={e => setSellingPrice(e.target.value)} />
 
-              {/* Image upload spans full width */}
+              {/* Image Upload */}
               <div className="md:col-span-2">
                 <label htmlFor="item-image" className="block text-sm font-medium mb-1 flex items-center gap-1">
                   <ImageIcon size={16} /> Image Upload
@@ -280,11 +306,7 @@ export default function InventoryPage() {
                   }}
                 />
                 {preview ? (
-                  <img
-                    src={preview}
-                    alt="Preview"
-                    className="w-full h-32 object-cover rounded mb-2"
-                  />
+                  <img src={preview} alt="Preview" className="w-full h-32 object-cover rounded mb-2" />
                 ) : (
                   <div className="w-full h-32 bg-gray-100 flex items-center justify-center rounded mb-2 text-gray-400">
                     <ImageIcon size={32} />
@@ -292,32 +314,17 @@ export default function InventoryPage() {
                 )}
               </div>
 
-              {/* Description spans full width */}
-              <textarea
-                className="border p-2 w-full rounded md:col-span-2"
-                placeholder="Description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
+              <textarea className="border p-2 w-full rounded md:col-span-2" placeholder="Description" value={description} onChange={e => setDescription(e.target.value)} />
 
-              {/* Buttons */}
               <div className="flex justify-end gap-2 md:col-span-2 mt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-3 py-1 border rounded flex items-center gap-1"
-                >
+                <button type="button" onClick={resetForm} className="px-3 py-1 border rounded flex items-center gap-1">
                   <X size={16} /> Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="bg-blue-600 text-white px-4 py-1 rounded flex items-center gap-1"
-                >
-                  <Plus size={16} /> Add
+                <button type="submit" className="bg-blue-600 text-white px-4 py-1 rounded flex items-center gap-1">
+                  {isEditing ? "Update" : <> <Plus size={16} /> Add </>}
                 </button>
               </div>
             </form>
-
           </div>
         </div>
       )}

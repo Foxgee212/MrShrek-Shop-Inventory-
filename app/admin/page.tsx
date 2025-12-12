@@ -3,22 +3,52 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+
+
 export default function AdminDashboard() {
-  const [stats, setStats] = useState({
-    totalProducts: 0,
-    lowStock: 0,
-    totalUsers: 0,
-    todaySales: 0,
-  });
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     async function loadStats() {
-      const res = await fetch("/api/admin/stats");
-      const data = await res.json();
-      setStats(data);
+      try {
+        const res = await fetch("/api/admin/stats");
+        if (!res.ok) throw new Error("Failed to load stats");
+        const data = await res.json();
+        setStats(data);
+      } catch (err) {
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
     }
     loadStats();
   }, []);
+
+  if (loading) {
+    return (
+      <div className="p-6 animate-pulse">
+        <h1 className="text-3xl font-bold mb-6">Loading Dashboard...</h1>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-24 bg-gray-200 rounded"></div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !stats) {
+    return (
+      <div className="p-6">
+        <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
+        <p className="text-red-600 bg-red-100 p-3 rounded">
+          Could not load stats. Try refreshing.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
@@ -26,7 +56,6 @@ export default function AdminDashboard() {
 
       {/* TOP STATS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        
         <div className="p-4 bg-blue-500 text-white rounded shadow">
           <h2 className="text-xl">Total Products</h2>
           <p className="text-3xl font-bold">{stats.totalProducts}</p>
@@ -47,11 +76,28 @@ export default function AdminDashboard() {
           <p className="text-3xl font-bold">₦{stats.todaySales}</p>
         </div>
 
+        <div className="p-4 bg-yellow-500 text-white rounded shadow">
+          <h2 className="text-xl">Today Expenses</h2>
+          <p className="text-3xl font-bold">₦{stats.todayExpenses}</p>
+        </div>
+
+        <div className="p-4 bg-orange-500 text-white rounded shadow">
+          <h2 className="text-xl">Total Expenses</h2>
+          <p className="text-3xl font-bold">₦{stats.totalExpenses}</p>
+        </div>
+
+        <div className="p-4 bg-teal-600 text-white rounded shadow md:col-span-2">
+          <h2 className="text-xl">Net Balance</h2>
+          <p className="text-3xl font-bold">
+            ₦{stats.balance}
+          </p>
+        </div>
       </div>
+
 
       {/* MANAGEMENT LINKS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        
+
         <Link href="/store" className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50">
           <h3 className="text-xl font-bold">Inventory Management</h3>
           <p>Add, edit, and delete products.</p>
@@ -66,6 +112,14 @@ export default function AdminDashboard() {
           <h3 className="text-xl font-bold">Purchase Orders</h3>
           <p>Record new stock you bought.</p>
         </Link>
+        <Link
+          href="/expenses"
+          className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50"
+        >
+          <h3 className="text-xl font-bold">Expenses</h3>
+          <p>Record withdrawals, misc expenses, and stock purchases.</p>
+        </Link>
+
 
         <Link href="/reports" className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50">
           <h3 className="text-xl font-bold">Reports</h3>

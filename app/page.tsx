@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
@@ -11,34 +11,73 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // =========================
+  // AUTO-LOGIN USING COOKIE
+  // =========================
+  useEffect(() => {
+    async function checkAuth() {
+      try {
+        setLoading(true);
+        const res = await fetch("/api/auth/me"); // cookies are sent automatically
+        if (!res.ok) return; // no valid token
+        const data = await res.json();
+
+        // Redirect if logged in
+        if (data.user.role === "admin") {
+          window.location.href = "/admin";
+        } else {
+          window.location.href = "/sell";
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    checkAuth();
+  }, []);
+
+  // =========================
+  // HANDLE LOGIN
+  // =========================
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-
     if (loading) return;
+
     setLoading(true);
     setError("");
 
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password, remember }),
-      headers: { "Content-Type": "application/json" }
-    });
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, remember }),
+      });
 
-    const data = await res.json();
-    setLoading(false);
+      const data = await res.json();
+      setLoading(false);
 
-    if (!res.ok) {
-      setError(data.error || "Login failed");
-      return;
-    }
+      if (!res.ok) {
+        setError(data.error || "Login failed");
+        return;
+      }
 
-    if (data.user.role === "admin") {
-      window.location.href = "/admin";
-    } else {
-      window.location.href = "/sell";
+      // Server should set HttpOnly cookie with token
+      if (data.user.role === "admin") {
+        window.location.href = "/admin";
+      } else {
+        window.location.href = "/sell";
+      }
+    } catch (err) {
+      setLoading(false);
+      setError("Login failed, try again");
     }
   }
 
+  // =========================
+  // JSX UI
+  // =========================
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-gray-100">
       <form
@@ -55,10 +94,7 @@ export default function LoginPage() {
 
         {/* Email */}
         <div className="mb-4">
-          <label htmlFor="email" className="text-sm text-gray-600 block mb-1">
-            Email
-          </label>
-
+          <label htmlFor="email" className="text-sm text-gray-600 block mb-1">Email</label>
           <div className="relative">
             <Mail className="absolute left-3 top-3 text-gray-400" size={18} />
             <input
@@ -74,13 +110,9 @@ export default function LoginPage() {
 
         {/* Password */}
         <div className="mb-4">
-          <label htmlFor="password" className="text-sm text-gray-600 block mb-1">
-            Password
-          </label>
-
+          <label htmlFor="password" className="text-sm text-gray-600 block mb-1">Password</label>
           <div className="relative">
             <Lock className="absolute left-3 top-3 text-gray-400" size={18} />
-
             <input
               id="password"
               type={showPassword ? "text" : "password"}
@@ -89,7 +121,6 @@ export default function LoginPage() {
               placeholder="Enter password"
               onChange={(e) => setPassword(e.target.value)}
             />
-
             <button
               type="button"
               className="absolute right-3 top-2.5 text-gray-500 hover:text-gray-700"
@@ -110,10 +141,7 @@ export default function LoginPage() {
             />
             Remember me
           </label>
-
-          <span className="text-blue-600 cursor-pointer hover:underline">
-            Forgot password?
-          </span>
+          <span className="text-blue-600 cursor-pointer hover:underline">Forgot password?</span>
         </div>
 
         {/* Submit */}
@@ -126,9 +154,7 @@ export default function LoginPage() {
           {loading ? "Signing in..." : "Login"}
         </button>
 
-        <div className="text-center mt-4 text-xs text-gray-400">
-          Secure POS Access
-        </div>
+        <div className="text-center mt-4 text-xs text-gray-400">Secure POS Access</div>
       </form>
     </div>
   );
