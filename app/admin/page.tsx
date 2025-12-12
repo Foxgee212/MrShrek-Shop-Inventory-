@@ -3,12 +3,23 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+type Stats = {
+  totalProducts: number;
+  lowStock: number;
+  totalUsers: number;
+  todaySales: number;
+  todayExpenses: number;
+  totalExpenses: number;
+  balance: number;
+};
 
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState(null);
+  const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+
+  
 
   useEffect(() => {
     async function loadStats() {
