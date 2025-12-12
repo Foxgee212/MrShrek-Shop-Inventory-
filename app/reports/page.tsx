@@ -6,8 +6,48 @@ import {
   BarChart, Bar, Legend, PieChart, Pie, Cell
 } from "recharts";
 
+type DailySale = {
+  _id: {
+    day: number;
+    month: number;
+    year: number;
+  };
+  total: number;
+};
+
+type HourlySale = {
+  _id: string;
+  total: number;
+};
+
+type BestItem = {
+  item: {
+    name: string;
+  };
+  totalQty: number;
+  totalRevenue: number;
+};
+
+type CategorySale = {
+  _id: string;
+  totalRevenue: number;
+};
+
+type ReportsData = {
+  todaySales: number;
+  weeklySales: number;
+  thisMonthSales: number;
+  totalRevenue: number;
+  hourlySales: HourlySale[];
+  dailySales: DailySale[];
+  bestSellingItems: BestItem[];
+  categorySales: CategorySale[];
+};
+
+
 export default function ReportsPage() {
-  const [reports, setReports] = useState<any>(null);
+
+  const [reports, setReports] = useState<ReportsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
