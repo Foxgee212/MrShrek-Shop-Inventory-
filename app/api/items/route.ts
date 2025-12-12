@@ -3,6 +3,10 @@ import Item from "../../../models/Item";
 import ActivityLog from "../../../models/ActivityLog";
 import { verifyTokenFromReq } from "../../../lib/auth";
 import { v2 as cloudinary } from "cloudinary";
+import type { InferSchemaType } from "mongoose";
+
+type ItemType = InferSchemaType<typeof Item.schema>;
+
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -72,7 +76,8 @@ export async function POST(req: Request) {
       itemData.photo = await uploadToCloudinary(buffer);
     }
 
-    const item = await Item.create(itemData);
+const item: ItemType = await Item.create(itemData);
+
 
     await ActivityLog.create({
       userId: user.id,
