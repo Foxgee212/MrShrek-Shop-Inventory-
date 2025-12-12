@@ -1,6 +1,6 @@
-import dbConnect from "@/lib/dbConnect";
-import Expense from "@/models/Expense";
-import { verifyTokenFromReq } from "@/lib/auth";
+import { dbConnect } from "../../../../lib/dbConnect";
+import Expense from "../../../../models/Expense";
+import { verifyTokenFromReq } from "../../../../lib/auth";
 
 export async function DELETE(req, { params }) {
   try {
