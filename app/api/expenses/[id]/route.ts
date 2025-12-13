@@ -8,7 +8,10 @@ interface AuthUser {
   email: string;
 }
 
-export async function DELETE(req: NextRequest, context: { params: { id: string } }) {
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     await dbConnect();
 
@@ -23,15 +26,25 @@ export async function DELETE(req: NextRequest, context: { params: { id: string }
       email: (tokenData as any).email,
     };
 
-    const { id } = context.params; // <-- access id safely
+    // ✅ await params
+    const { id } = await params;
+
     const expense = await Expense.findById(id);
-    if (!expense) return NextResponse.json({ error: "Expense not found" }, { status: 404 });
+    if (!expense) {
+      return NextResponse.json({ error: "Expense not found" }, { status: 404 });
+    }
 
     await Expense.findByIdAndDelete(id);
 
-    return NextResponse.json({ message: "Deleted successfully" }, { status: 200 });
+    return NextResponse.json(
+      { message: "Deleted successfully" },
+      { status: 200 }
+    );
   } catch (err: any) {
     console.error(err);
-    return NextResponse.json({ error: err.message || "Failed to delete expense" }, { status: 500 });
+    return NextResponse.json(
+      { error: err.message || "Failed to delete expense" },
+      { status: 500 }
+    );
   }
 }
