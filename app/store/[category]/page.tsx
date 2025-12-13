@@ -38,9 +38,9 @@ export default function BrandPage() {
     <div className="p-6 grid grid-cols-2 md:grid-cols-3 gap-4">
       {brands.map((brand) => (
         <Link
-          key={brand.name}
-          href={`/sell/${category}/${brand.name}`}
-          className="relative bg-white rounded-lg shadow p-6 text-lg font-bold text-center hover:bg-gray-100"
+            key={`${category}-${brand.name}`}
+            href={`/store/${category}/${brand.name}`}
+            className="relative bg-white rounded-lg shadow p-6 text-lg font-bold text-center hover:bg-gray-100"
         >
           {/* 🔴 Stock warning */}
           {brand.hasOutOfStock && (

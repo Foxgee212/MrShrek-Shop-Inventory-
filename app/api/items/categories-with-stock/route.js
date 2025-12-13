@@ -6,6 +6,7 @@ export async function GET() {
 
   // Get all distinct categories
   const categories = await Item.distinct("category");
+  const brands = await Item.distinct("brand");
 
   const result = await Promise.all(
     categories.map(async (cat) => {
@@ -20,5 +21,17 @@ export async function GET() {
     })
   );
 
-  return new Response(JSON.stringify(result), { status: 200 });
+  const brandResult = await Promise.all(
+    brands.map(async (brand) => {
+      // Check if any item in this brand is out of stock
+      const brandhasOutOfStock = await Item.exists({ brand: brand, stock: { $lte: 0 } });
+
+      // Also get categories this brand belongs to
+      const categoriesForBrand = await Item.distinct("category", { brand: brand });
+
+        return { name: brand, hasOutOfStock: !!brandhasOutOfStock, categories: categoriesForBrand };  
+      })
+  );
+
+  return new Response(JSON.stringify({ categories: result, brands: brandResult }), { status: 200 });
 }

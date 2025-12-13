@@ -1,8 +1,23 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link"
 import jwt from "jsonwebtoken";
 import { Plus, Edit2, Trash2, Search, Image as ImageIcon, Box, X } from "lucide-react";
+
+type Category = {
+  name: string;
+  hasOutOfStock: boolean;
+  imageUrl: string;
+};
+type CategoriesResponse = {
+  categories: Category[];
+  brands: {
+    name: string;
+    hasOutOfStock: boolean;
+  }[];
+};
+
 
 export default function InventoryPage() {
   const [items, setItems] = useState<any[]>([]);
@@ -11,8 +26,7 @@ export default function InventoryPage() {
   const [role, setRole] = useState<"admin" | "staff" | null>(null);
   const [image, setImage] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const [editingItem, setEditingItem] = useState<any>(null);
-  const [isEditing, setIsEditing] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
 
   // Form fields
   const [name, setName] = useState("");
@@ -40,35 +54,6 @@ export default function InventoryPage() {
       }
     }
   }, []);
-
-  // Load inventory
-  async function loadInventory() {
-    const res = await fetch("/api/items", { credentials: "include" });
-    const data = await res.json();
-    setItems(data);
-  }
-
-  useEffect(() => {
-    loadInventory();
-  }, []);
-
-  // Start editing
-  function handleEdit(item: any) {
-    setEditingItem(item);
-    setIsEditing(true);
-    setShowModal(true);
-
-    setName(item.name);
-    setCategory(item.category);
-    setBrand(item.brand);
-    setType(item.type);
-    setModel(item.model);
-    setStock(item.stock);
-    setCostPrice(item.costPrice);
-    setSellingPrice(item.sellingPrice);
-    setDescription(item.description);
-    setPreview(item.imageUrl || null);
-  }
 
   // Add new item
   async function handleAdd(e: any) {
@@ -102,66 +87,16 @@ export default function InventoryPage() {
 
     if (res.ok) {
       resetForm();
-      loadInventory();
+      fetchCategories();
     } else {
       const err = await res.json();
       alert(err.error);
     }
-  }
-
-  // Update item
-  async function handleUpdate(e: any) {
-    e.preventDefault();
-    if (role !== "admin") return;
-
-    const token = document.cookie
-      .split("; ")
-      .find(c => c.startsWith("token="))
-      ?.split("=")[1];
-
-    const formData = new FormData();
-    formData.append("name", name);
-    formData.append("category", category);
-    formData.append("brand", brand);
-    formData.append("type", type);
-    formData.append("model", model);
-    formData.append("stock", stock);
-    formData.append("costPrice", costPrice);
-    formData.append("sellingPrice", sellingPrice);
-    formData.append("description", description);
-    if (image) formData.append("image", image);
-
-    const res = await fetch(`/api/items/${editingItem._id}`, {
-      method: "PUT",
-      body: formData,
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (res.ok) {
-      resetForm();
-      loadInventory();
-    } else {
-      const err = await res.json();
-      alert(err.error);
-    }
-  }
-
-  // Delete item
-  async function handleDelete(id: string) {
-    if (role !== "admin") return;
-    if (!confirm("Delete this item?")) return;
-
-    await fetch(`/api/items/${id}`, { method: "DELETE", credentials: "include" });
-    loadInventory();
   }
 
   // Reset form
   function resetForm() {
     setShowModal(false);
-    setIsEditing(false);
-    setEditingItem(null);
     setImage(null);
     setPreview(null);
     setName("");
@@ -178,6 +113,22 @@ export default function InventoryPage() {
   const filteredItems = items.filter((i) =>
     i.name.toLowerCase().includes(search.toLowerCase())
   );
+  async function fetchCategories() {
+  const res = await fetch("/api/items/categories-with-stock");
+  const data: CategoriesResponse = await res.json();
+
+  setCategories(Array.isArray(data.categories) ? data.categories : []);
+}
+
+  
+    useEffect(() => {
+      fetchCategories();
+  
+      // Poll every 10 seconds
+      const interval = setInterval(fetchCategories, 10000);
+      return () => clearInterval(interval);
+    }, []);
+  
 
   return (
     <div className="p-6 text-gray-900">
@@ -207,52 +158,34 @@ export default function InventoryPage() {
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
+      <div className="p-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      {categories.map((cat) => (
+        <Link
+          key={cat.name}
+          href={`/store/${cat.name.toLowerCase()}`}
+          className="relative bg-white rounded-xl shadow hover:scale-105 transition overflow-hidden"
+        >
+          {/* Category Image */}
+          <div className="h-32 w-full overflow-hidden rounded-t-xl">
+            <img
+              src={cat.imageUrl}
+              alt={cat.name}
+              className="w-full h-full object-scale-down"
+            />
+          </div>
 
-      {/* Inventory table */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full bg-white shadow rounded">
-          <thead>
-            <tr className="bg-gray-200 text-left">
-              <th className="p-3">Name</th>
-              <th className="p-3">Brand</th>
-              <th className="p-3">Model</th>
-              <th className="p-3">Category</th>
-              <th className="p-3">Type</th>
-              <th className="p-3">Stock</th>
-              <th className="p-3">Cost</th>
-              <th className="p-3">Selling</th>
-              {role === "admin" && <th className="p-3">Actions</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {filteredItems.map((item) => (
-              <tr key={item._id} className="border-b">
-                <td className="p-3">{item.name}</td>
-                <td className="p-3">{item.brand}</td>
-                <td className="p-3">{item.model}</td>
-                <td className="p-3">{item.category}</td>
-                <td className="p-3">{item.type}</td>
-                <td className="p-3">{item.stock}</td>
-                <td className="p-3">₦{item.costPrice}</td>
-                <td className="p-3">₦{item.sellingPrice}</td>
-                {role === "admin" && (
-                  <td className="p-3 flex gap-2">
-                    <button
-                      className="text-blue-600 flex items-center gap-1"
-                      onClick={() => handleEdit(item)}
-                    >
-                      <Edit2 size={16} /> Edit
-                    </button>
-                    <button
-                      className="text-red-600 flex items-center gap-1"
-                      onClick={() => handleDelete(item._id)}
-                    >
-                      <Trash2 size={16} /> Delete
-                    </button>
-                  </td>
-                )}
-              </tr>
-            ))}
+          {/* Red alert for out-of-stock */}
+          {cat.hasOutOfStock && (
+            <span className="absolute top-2 right-2 w-3 h-3 rounded-full bg-red-600 animate-pulse" />
+          )}
+
+          {/* Category Name */}
+          <div className="text-lg font-bold p-4">{cat.name}</div>
+        </Link>
+      ))}
+    </div>
+
+      
             {filteredItems.length === 0 && (
               <tr>
                 <td
@@ -263,21 +196,17 @@ export default function InventoryPage() {
                 </td>
               </tr>
             )}
-          </tbody>
-        </table>
-      </div>
-
+      
       {/* Add/Edit Modal */}
       {showModal && role === "admin" && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded shadow-lg w-96">
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-              {isEditing ? <Edit2 size={20} /> : <Plus size={20} />}{" "}
-              {isEditing ? "Edit Item" : "Add New Item"}
+               <Plus size={20} /> Add New Item
             </h2>
 
             <form
-              onSubmit={isEditing ? handleUpdate : handleAdd}
+              onSubmit={ handleAdd}
               className="grid grid-cols-1 md:grid-cols-2 gap-4"
             >
               <input className="border p-2 rounded" placeholder="Name" value={name} onChange={e => setName(e.target.value)} />
@@ -321,7 +250,7 @@ export default function InventoryPage() {
                   <X size={16} /> Cancel
                 </button>
                 <button type="submit" className="bg-blue-600 text-white px-4 py-1 rounded flex items-center gap-1">
-                  {isEditing ? "Update" : <> <Plus size={16} /> Add </>}
+                  <Plus size={16} /> Add Item
                 </button>
               </div>
             </form>

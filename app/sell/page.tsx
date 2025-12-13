@@ -7,14 +7,25 @@ type Category = {
   hasOutOfStock: boolean;
   imageUrl: string;
 };
+type Brand = {
+  name: string;
+  hasOutOfStock: boolean;
+  categories: string[];
+};
+type CategoriesResponse = {
+  categories: Category[];
+  brands: Brand[];
+};
 
 export default function SellPage() {
   const [categories, setCategories] = useState<Category[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
 
   async function fetchCategories() {
     const res = await fetch("/api/items/categories-with-stock");
-    const data: Category[] = await res.json();
-    setCategories(data);
+    const data: CategoriesResponse = await res.json();
+    setCategories(data.categories);
+    setBrands(data.brands);
   }
 
   useEffect(() => {
