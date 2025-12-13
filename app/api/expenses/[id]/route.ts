@@ -8,13 +8,11 @@ interface AuthUser {
   email: string;
 }
 
-export async function DELETE(
-  req: NextRequest,
-  context: { params: { id: string } } // must match Next.js App Router signature exactly
-) {
+export async function DELETE(req: NextRequest, context: any) {
   try {
     await dbConnect();
 
+    // verify token
     const tokenData = await verifyTokenFromReq(req);
     if (!tokenData) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -25,7 +23,7 @@ export async function DELETE(
       email: (tokenData as any).email,
     };
 
-    const { id } = context.params; // <-- destructure from context.params
+    const { id } = context.params; // <-- access id safely
     const expense = await Expense.findById(id);
     if (!expense) return NextResponse.json({ error: "Expense not found" }, { status: 404 });
 
