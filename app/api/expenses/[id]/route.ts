@@ -8,7 +8,7 @@ interface AuthUser {
   email: string;
 }
 
-export async function DELETE(req: NextRequest, context: any) {
+export async function DELETE(req: NextRequest, context: { params: { id: string } }) {
   try {
     await dbConnect();
 
