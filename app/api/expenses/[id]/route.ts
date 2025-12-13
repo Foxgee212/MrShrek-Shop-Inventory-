@@ -1,21 +1,24 @@
 import { dbConnect } from "../../../../lib/dbConnect";
 import Expense from "../../../../models/Expense";
 import { verifyTokenFromReq } from "../../../../lib/auth";
+import { NextRequest } from "next/server";
 
 interface AuthUser {
   id: string;
   email: string;
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     await dbConnect();
 
     // verify token
     const tokenData = await verifyTokenFromReq(req);
 
-    // make sure tokenData is not undefined and has id/email
-    if (!tokenData || typeof tokenData === "undefined") {
+    if (!tokenData) {
       return new Response("Unauthorized", { status: 401 });
     }
 
@@ -24,10 +27,11 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
       email: (tokenData as any).email,
     };
 
-    const expense = await Expense.findById(params.id);
+    const { id } = params;
+    const expense = await Expense.findById(id);
     if (!expense) return new Response("Expense not found", { status: 404 });
 
-    await Expense.findByIdAndDelete(params.id);
+    await Expense.findByIdAndDelete(id);
 
     return new Response(JSON.stringify({ message: "Deleted successfully" }), { status: 200 });
   } catch (err: any) {
