@@ -4,22 +4,34 @@ import { useEffect, useState } from "react";
 
 type Expense = {
   _id: string;
-  type: string;
+  type: "stock_purchase" | "withdrawal" | "misc";
   amount: number;
   description: string;
+  category?: string;
+  paymentMethod?: "cash" | "transfer" | "pos";
+  reference?: string;
+  supplier?: string;
+  linkedItemId?: string;
+  status?: "approved" | "pending" | "cancelled";
   date: string;
 };
 
 export default function ExpensePage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [form, setForm] = useState({
-    type: "",
-    amount: "",
+  const [form, setForm] = useState<Omit<Expense, "_id">>({
+    type: "misc",
+    amount: 0,
     description: "",
-    date: "",
+    category: "",
+    paymentMethod: "cash",
+    reference: "",
+    supplier: "",
+    linkedItemId: "",
+    status: "approved",
+    date: new Date().toISOString().split("T")[0],
   });
 
-  function handleChange(e: any) {
+  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
     setForm({ ...form, [e.target.name]: e.target.value });
   }
 
@@ -32,46 +44,52 @@ export default function ExpensePage() {
     const res = await fetch("/api/expenses", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: form.type,
-        amount: Number(form.amount),
-        description: form.description,
-        date: form.date || new Date().toISOString(),
-      }),
+      body: JSON.stringify({ ...form }),
     });
 
     if (!res.ok) {
-      alert("Failed to save expense");
+      const err = await res.json();
+      alert(err.error || "Failed to save expense");
       return;
     }
 
     const newExpense = await res.json();
     setExpenses((prev) => [newExpense, ...prev]);
 
-    setForm({ type: "", amount: "", description: "", date: "" });
+    setForm({
+      type: "misc",
+      amount: 0,
+      description: "",
+      category: "",
+      paymentMethod: "cash",
+      reference: "",
+      supplier: "",
+      linkedItemId: "",
+      status: "approved",
+      date: new Date().toISOString().split("T")[0],
+    });
+  }
+
+  async function loadExpenses() {
+    const res = await fetch("/api/expenses");
+    const data = await res.json();
+    setExpenses(data);
+  }
+
+  async function deleteExpense(id: string) {
+    const res = await fetch(`/api/expenses/${id}`, { method: "DELETE" });
+
+    if (!res.ok) {
+      alert("Failed to delete expense");
+      return;
+    }
+
+    setExpenses((prev) => prev.filter((e) => e._id !== id));
   }
 
   useEffect(() => {
-    async function loadExpenses() {
-      const res = await fetch("/api/expenses");
-      const data = await res.json();
-      setExpenses(data);
-    }
     loadExpenses();
   }, []);
-
-  async function deleteExpense(id: string) {
-  const res = await fetch(`/api/expenses/${id}`, {
-    method: "DELETE",
-  });
-
-  if (!res.ok) {
-    alert("Failed to delete expense");
-    return;
-  }
-
-  setExpenses((prev) => prev.filter((e) => e._id !== id));
-}
 
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-10">
@@ -80,21 +98,20 @@ export default function ExpensePage() {
         <h2 className="font-semibold text-xl mb-4">Record Expense</h2>
 
         <div className="grid gap-4">
-
-          {/* TYPE */}
+          <label htmlFor="type" className="font-semibold">
+            Expense Type
+          </label>
           <select
             name="type"
             className="p-3 border rounded-xl"
             value={form.type}
             onChange={handleChange}
           >
-            <option value="">Select Type</option>
             <option value="stock_purchase">Stock Purchase</option>
             <option value="withdrawal">Withdrawal</option>
             <option value="misc">Miscellaneous</option>
           </select>
 
-          {/* AMOUNT */}
           <input
             name="amount"
             type="number"
@@ -104,7 +121,6 @@ export default function ExpensePage() {
             onChange={handleChange}
           />
 
-          {/* DESCRIPTION */}
           <input
             name="description"
             className="p-3 border rounded-xl"
@@ -113,7 +129,62 @@ export default function ExpensePage() {
             onChange={handleChange}
           />
 
-          {/* DATE */}
+          <input
+            name="category"
+            className="p-3 border rounded-xl"
+            placeholder="Category (optional)"
+            value={form.category}
+            onChange={handleChange}
+          />
+          <label htmlFor="paymentMethod" className="font-semibold">
+            Payment Method
+          </label>
+          <select
+            name="paymentMethod"
+            className="p-3 border rounded-xl"
+            value={form.paymentMethod}
+            onChange={handleChange}
+          >
+            <option value="cash">Cash</option>
+            <option value="transfer">Transfer</option>
+            <option value="pos">POS</option>
+          </select>
+
+          <input
+            name="reference"
+            className="p-3 border rounded-xl"
+            placeholder="Reference (optional)"
+            value={form.reference}
+            onChange={handleChange}
+          />
+
+          <input
+            name="supplier"
+            className="p-3 border rounded-xl"
+            placeholder="Supplier (optional)"
+            value={form.supplier}
+            onChange={handleChange}
+          />
+
+          <input
+            name="linkedItemId"
+            className="p-3 border rounded-xl"
+            placeholder="Linked Item ID (optional)"
+            value={form.linkedItemId}
+            onChange={handleChange}
+          />
+          <label htmlFor="status" className="font-semibold">  Expense Status</label>
+          <select
+            name="status"
+            className="p-3 border rounded-xl"
+            value={form.status}
+            onChange={handleChange}
+          >
+            <option value="approved">Approved</option>
+            <option value="pending">Pending</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+          <label htmlFor="date" className="font-semibold"> Expense Date</label>
           <input
             name="date"
             type="date"
@@ -134,39 +205,32 @@ export default function ExpensePage() {
       {/* Expense Listing */}
       <div>
         <h2 className="font-semibold text-xl mb-4">Expenses</h2>
-
         <div className="space-y-4">
-          {expenses.length === 0 && (
-            <p className="text-gray-500">No expenses yet...</p>
-          )}
+          {expenses.length === 0 && <p className="text-gray-500">No expenses yet...</p>}
 
           {expenses.map((exp) => (
-        <div
-            key={exp._id}
-            className="p-4 border rounded-2xl flex justify-between items-center bg-white shadow"
+            <div
+              key={exp._id}
+              className="p-4 border rounded-2xl flex justify-between items-center bg-white shadow"
             >
-            <div>
+              <div>
                 <p className="font-semibold capitalize">{exp.type.replace("_", " ")}</p>
-                <p className="text-gray-600 text-sm">{exp.description}</p>
-                <p className="text-gray-400 text-sm">
-                {new Date(exp.date).toLocaleDateString()}
-                </p>
-            </div>
+                {exp.description && <p className="text-gray-600 text-sm">{exp.description}</p>}
+                {exp.category && <p className="text-gray-600 text-sm">Category: {exp.category}</p>}
+                {exp.paymentMethod && <p className="text-gray-400 text-sm">Payment: {exp.paymentMethod}</p>}
+                <p className="text-gray-400 text-sm">{new Date(exp.date).toLocaleDateString()}</p>
+              </div>
 
-            <div className="flex flex-col items-end gap-2">
-                <div className="font-bold text-red-600">
-                ₦{exp.amount.toLocaleString()}
-                </div>
-
+              <div className="flex flex-col items-end gap-2">
+                <div className="font-bold text-red-600">₦{exp.amount.toLocaleString()}</div>
                 <button
-                onClick={() => deleteExpense(exp._id)}
-                className="text-sm text-red-600 hover:text-red-800"
+                  onClick={() => deleteExpense(exp._id)}
+                  className="text-sm text-red-600 hover:text-red-800"
                 >
-                Delete
+                  Delete
                 </button>
+              </div>
             </div>
-            </div>
-
           ))}
         </div>
       </div>

@@ -38,6 +38,8 @@ type ReportsData = {
   weeklySales: number;
   thisMonthSales: number;
   totalRevenue: number;
+  totalExpenses: number;
+  netCash: number;
   hourlySales: HourlySale[];
   dailySales: DailySale[];
   bestSellingItems: BestItem[];
@@ -97,6 +99,12 @@ export default function ReportsPage() {
           <h2 className="text-xl">Total Revenue</h2>
           <p className="text-2xl font-bold">₦{reports.totalRevenue}</p>
         </div>
+
+        <div className="p-4 bg-emerald-600 text-white rounded shadow">
+          <h2 className="text-xl">Net Cash</h2>
+          <p className="text-2xl font-bold">₦{reports.netCash}</p>
+        </div>
+
       </div>
 
       {/* HOURLY SALES (Today's POS activity) */}

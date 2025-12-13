@@ -2,25 +2,90 @@ import mongoose from "mongoose";
 
 const SaleSchema = new mongoose.Schema(
   {
+    /* ---------------- Core Relations ---------------- */
     itemId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Item",
       required: true,
+      index: true,
     },
+
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+      index: true,
     },
-    quantity: { type: Number, required: true },
-    sellingPrice: { type: Number, required: true },
-    total: { type: Number, required: true },
 
-    // Useful for grouping sales by day/month/year
-    date: { type: Date, default: Date.now },
+    /* ---------------- Snapshot (Immutable) ---------------- */
+    itemName: { type: String, required: true },     // snapshot
+    category: { type: String, required: true },     // snapshot
+    brand: { type: String },                         // snapshot
+    model: { type: String },                         // snapshot
+
+    /* ---------------- Quantity & Pricing ---------------- */
+    quantity: {
+      type: Number,
+      required: true,
+      min: 1,
+    },
+
+    costPrice: {
+      type: Number,
+      required: true,
+    },
+
+    sellingPrice: {
+      type: Number,
+      required: true,
+    },
+
+    /* ---------------- Financial Totals ---------------- */
+    totalRevenue: {
+      type: Number,
+      required: true,
+    },
+
+    totalCost: {
+      type: Number,
+      required: true,
+    },
+
+    netCash: {
+      type: Number,
+      required: true,
+      index: true,
+    },
+
+    /* ---------------- Payment Tracking ---------------- */
+    paymentMethod: {
+      type: String,
+      enum: ["cash", "transfer", "pos"],
+      default: "cash",
+      index: true,
+    },
+
+    reference: {
+      type: String, // POS ref / bank ref
+    },
+
+    /* ---------------- Status Control ---------------- */
+    status: {
+      type: String,
+      enum: ["completed", "refunded", "voided"],
+      default: "completed",
+      index: true,
+    },
+
+    /* ---------------- Date Control ---------------- */
+    date: {
+      type: Date,
+      default: Date.now,
+      index: true,
+    },
   },
   {
-    timestamps: true, // adds createdAt & updatedAt automatically
+    timestamps: true, // createdAt & updatedAt
   }
 );
 

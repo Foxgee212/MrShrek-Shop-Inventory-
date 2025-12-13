@@ -1,5 +1,6 @@
 import Item from "../../../../../models/Item";
 import Sale from "../../../../../models/Sale";
+import Expense from "../../../../../models/Expense";
 import { dbConnect } from "../../../../../lib/dbConnect";
 
 export async function GET() {
@@ -28,6 +29,7 @@ export async function GET() {
     ]);
     return data[0]?.total || 0;
   };
+
 
   // ==== BASIC TOTALS ====
   const todaySales = await sumSales(today);
@@ -98,6 +100,23 @@ export async function GET() {
     },
     { $sort: { "_id": 1 } }
   ]);
+// ==== TOTAL EXPENSES ====
+const expenseAgg = await Expense.aggregate([
+  {
+    $group: {
+      _id: null,
+      total: { $sum: "$amount" }
+    }
+  }
+]);
+
+const totalExpenses = expenseAgg[0]?.total || 0;
+
+// ==== NET CASH ====
+const netCash = totalRevenue - totalExpenses;
+
+
+
 
   // ==== DAILY SALES (last 30 days chart) ====
   const dailySales = await Sale.aggregate([
@@ -115,6 +134,37 @@ export async function GET() {
     { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } }
   ]);
 
+
+  // ==== DAILY EXPENSES (last 30 days) ====
+const dailyExpenses = await Expense.aggregate([
+  { $match: { createdAt: { $gte: thirtyDaysAgo } } },
+  {
+    $group: {
+      _id: {
+        day: { $dayOfMonth: "$createdAt" },
+        month: { $month: "$createdAt" },
+        year: { $year: "$createdAt" },
+      },
+      total: { $sum: "$amount" },
+    },
+  },
+  { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } },
+]);
+// ==== NET CASH PER DAY ====
+const netCashDaily = dailySales.map((saleDay) => {
+  const expenseDay = dailyExpenses.find(
+    (e) =>
+      e._id.day === saleDay._id.day &&
+      e._id.month === saleDay._id.month &&
+      e._id.year === saleDay._id.year
+  );
+
+  return {
+    _id: saleDay._id,
+    net: saleDay.total - (expenseDay?.total || 0),
+  };
+});
+
   return Response.json({
     todaySales,
     yesterdaySales: yesterdaySales[0]?.total || 0,
@@ -125,9 +175,14 @@ export async function GET() {
     totalRevenue,
     totalSalesCount,
 
+    totalExpenses,
+    netCash,
+
     bestSellingItems,
     categorySales,
     hourlySales,
     dailySales,
+    netCashDaily,
+    dailyExpenses,
   });
 }

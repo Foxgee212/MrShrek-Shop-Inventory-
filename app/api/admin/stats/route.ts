@@ -38,10 +38,18 @@ export async function GET() {
   ]);
 
   // =========================
-  // NET CASH BALANCE
-  // =========================
-  const balance =
-    (todaySales[0]?.total || 0) - (todayExpenses[0]?.total || 0);
+// TOTAL REVENUE (LIFETIME)
+// =========================
+const totalRevenueAgg = await Sale.aggregate([
+  { $group: { _id: null, total: { $sum: "$total" } } },
+]);
+const totalRevenue = totalRevenueAgg[0]?.total || 0;
+
+// =========================
+// NET CASH BALANCE (Lifetime)
+// =========================
+const balance = totalRevenue - (totalExpenses[0]?.total || 0);
+
 
   return new Response(
     JSON.stringify({
@@ -51,6 +59,7 @@ export async function GET() {
       todaySales: todaySales[0]?.total || 0,
       todayExpenses: todayExpenses[0]?.total || 0,
       totalExpenses: totalExpenses[0]?.total || 0,
+      totalRevenue,
       balance,
     })
   );

@@ -10,16 +10,14 @@ type Stats = {
   todaySales: number;
   todayExpenses: number;
   totalExpenses: number;
+  totalRevenue: number;
   balance: number;
 };
-
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-
-  
 
   useEffect(() => {
     async function loadStats() {
@@ -36,6 +34,9 @@ export default function AdminDashboard() {
     }
     loadStats();
   }, []);
+
+  const formatCurrency = (num: number) =>
+    `₦${num.toLocaleString(undefined, { minimumFractionDigits: 0 })}`;
 
   if (loading) {
     return (
@@ -84,31 +85,33 @@ export default function AdminDashboard() {
 
         <div className="p-4 bg-purple-500 text-white rounded shadow">
           <h2 className="text-xl">Today Sales</h2>
-          <p className="text-3xl font-bold">₦{stats.todaySales}</p>
+          <p className="text-3xl font-bold">{formatCurrency(stats.todaySales)}</p>
         </div>
 
         <div className="p-4 bg-yellow-500 text-white rounded shadow">
           <h2 className="text-xl">Today Expenses</h2>
-          <p className="text-3xl font-bold">₦{stats.todayExpenses}</p>
+          <p className="text-3xl font-bold">{formatCurrency(stats.todayExpenses)}</p>
         </div>
 
         <div className="p-4 bg-orange-500 text-white rounded shadow">
           <h2 className="text-xl">Total Expenses</h2>
-          <p className="text-3xl font-bold">₦{stats.totalExpenses}</p>
+          <p className="text-3xl font-bold">{formatCurrency(stats.totalExpenses)}</p>
+        </div>
+
+        <div className="p-4 bg-indigo-500 text-white rounded shadow">
+          <h2 className="text-xl">Total Revenue</h2>
+          <p className="text-3xl font-bold">{formatCurrency(stats.totalRevenue)}</p>
         </div>
 
         <div className="p-4 bg-teal-600 text-white rounded shadow md:col-span-2">
           <h2 className="text-xl">Net Balance</h2>
-          <p className="text-3xl font-bold">
-            ₦{stats.balance}
-          </p>
+          <p className="text-3xl font-bold">{formatCurrency(stats.balance)}</p>
         </div>
       </div>
 
 
       {/* MANAGEMENT LINKS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
         <Link href="/store" className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50">
           <h3 className="text-xl font-bold">Inventory Management</h3>
           <p>Add, edit, and delete products.</p>
@@ -123,14 +126,11 @@ export default function AdminDashboard() {
           <h3 className="text-xl font-bold">Purchase Orders</h3>
           <p>Record new stock you bought.</p>
         </Link>
-        <Link
-          href="/expenses"
-          className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50"
-        >
+
+        <Link href="/expenses" className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50">
           <h3 className="text-xl font-bold">Expenses</h3>
           <p>Record withdrawals, misc expenses, and stock purchases.</p>
         </Link>
-
 
         <Link href="/reports" className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50">
           <h3 className="text-xl font-bold">Reports</h3>
@@ -141,7 +141,6 @@ export default function AdminDashboard() {
           <h3 className="text-xl font-bold">Go to POS</h3>
           <p>Start selling items now.</p>
         </Link>
-
       </div>
     </div>
   );
