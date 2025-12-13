@@ -1,7 +1,7 @@
 import { dbConnect } from "../../../../lib/dbConnect";
 import Expense from "../../../../models/Expense";
 import { verifyTokenFromReq } from "../../../../lib/auth";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 interface AuthUser {
   id: string;
@@ -10,16 +10,14 @@ interface AuthUser {
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } } // must match Next.js App Router signature exactly
 ) {
   try {
     await dbConnect();
 
-    // verify token
     const tokenData = await verifyTokenFromReq(req);
-
     if (!tokenData) {
-      return new Response("Unauthorized", { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const user: AuthUser = {
@@ -27,15 +25,15 @@ export async function DELETE(
       email: (tokenData as any).email,
     };
 
-    const { id } = params;
+    const { id } = context.params; // <-- destructure from context.params
     const expense = await Expense.findById(id);
-    if (!expense) return new Response("Expense not found", { status: 404 });
+    if (!expense) return NextResponse.json({ error: "Expense not found" }, { status: 404 });
 
     await Expense.findByIdAndDelete(id);
 
-    return new Response(JSON.stringify({ message: "Deleted successfully" }), { status: 200 });
+    return NextResponse.json({ message: "Deleted successfully" }, { status: 200 });
   } catch (err: any) {
     console.error(err);
-    return new Response(JSON.stringify({ error: err.message || "Failed to delete expense" }), { status: 500 });
+    return NextResponse.json({ error: err.message || "Failed to delete expense" }, { status: 500 });
   }
 }
