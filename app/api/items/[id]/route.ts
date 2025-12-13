@@ -11,13 +11,13 @@ cloudinary.config({
 });
 
 // Upload helper
-async function uploadToCloudinary(buffer: Buffer) {
+async function uploadToCloudinary(buffer: Buffer): Promise<string> {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       { folder: "inventory" },
       (err, result) => {
         if (err) return reject(err);
-        resolve(result?.secure_url);
+        resolve(result!.secure_url);
       }
     );
     stream.end(buffer);
@@ -25,7 +25,7 @@ async function uploadToCloudinary(buffer: Buffer) {
 }
 
 /* =====================================
-   PUT (UPDATE ITEM)
+   PUT (UPDATE ITEM — PARTIAL SAFE UPDATE)
 ====================================== */
 export async function PUT(
   req: Request,
@@ -34,34 +34,36 @@ export async function PUT(
   await dbConnect();
 
   try {
-    const { id } = await context.params; // ✔ FIXED
-
-    const user = await verifyTokenFromReq(req, "admin"); // ✔ await
+    const { id } = await context.params;
+    const user = await verifyTokenFromReq(req, "admin");
 
     const form = await req.formData();
     const file = form.get("image") as File | null;
 
-    const updateData: any = {
-      name: form.get("name") || "",
-      category: form.get("category") || "",
-      brand: form.get("brand") || "",
-      type: form.get("type") || "",
-      model: form.get("model") || "",
-      stock: Number(form.get("stock") || 0),
-      costPrice: Number(form.get("costPrice") || 0),
-      sellingPrice: Number(form.get("sellingPrice") || 0),
-      description: form.get("description") || "",
-    };
+    const updateData: Record<string, any> = {};
 
-    // Cloudinary upload
+    // ✅ Only update fields that were sent
+    if (form.has("name")) updateData.name = form.get("name");
+    if (form.has("type")) updateData.type = form.get("type");
+    if (form.has("model")) updateData.model = form.get("model");
+    if (form.has("stock")) updateData.stock = Number(form.get("stock"));
+    if (form.has("sellingPrice"))
+      updateData.sellingPrice = Number(form.get("sellingPrice"));
+
+    // 🚫 category, brand, costPrice, description NOT overwritten
+    // unless explicitly sent in the future
+
+    // Image upload (optional)
     if (file) {
       const buffer = Buffer.from(await file.arrayBuffer());
       updateData.photo = await uploadToCloudinary(buffer);
     }
 
-    const updatedItem = await Item.findByIdAndUpdate(id, updateData, {
-      new: true,
-    });
+    const updatedItem = await Item.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true }
+    );
 
     if (!updatedItem) {
       return Response.json({ error: "Item not found" }, { status: 404 });
@@ -70,7 +72,7 @@ export async function PUT(
     await ActivityLog.create({
       userId: user.id,
       action: "update_item",
-      meta: { itemId: id },
+      meta: { itemId: id, updatedFields: Object.keys(updateData) },
     });
 
     return Response.json(updatedItem);
@@ -89,8 +91,7 @@ export async function DELETE(
   await dbConnect();
 
   try {
-    const { id } = await context.params; // ✔ FIXED
-
+    const { id } = await context.params;
     const user = await verifyTokenFromReq(req, "admin");
 
     const item = await Item.findByIdAndDelete(id);
@@ -102,7 +103,12 @@ export async function DELETE(
     await ActivityLog.create({
       userId: user.id,
       action: "delete_item",
-      meta: { itemId: id },
+      meta: {
+        itemId: id,
+        name: item.name,
+        category: item.category,
+        brand: item.brand,
+      },
     });
 
     return Response.json({ success: true });

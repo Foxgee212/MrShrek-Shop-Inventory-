@@ -5,8 +5,14 @@ export async function GET() {
   await dbConnect();
 
   // Get all distinct categories
-  const categories = await Item.distinct("category");
-  const brands = await Item.distinct("brand");
+ const categories = await Item.distinct("category", {
+  category: { $exists: true, $ne: "" }
+});
+
+const brands = await Item.distinct("brand", {
+  brand: { $exists: true, $ne: "" }
+});
+
 
   const result = await Promise.all(
     categories.map(async (cat) => {

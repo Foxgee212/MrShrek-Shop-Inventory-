@@ -128,6 +128,7 @@ export default function InventoryPage() {
       const interval = setInterval(fetchCategories, 10000);
       return () => clearInterval(interval);
     }, []);
+    console.log("Categories Page", categories);
   
 
   return (
@@ -184,19 +185,12 @@ export default function InventoryPage() {
         </Link>
       ))}
     </div>
+      {filteredItems.length === 0 && (
+        <div className="p-4 text-center text-gray-400">
+          No items found
+        </div>
+)}
 
-      
-            {filteredItems.length === 0 && (
-              <tr>
-                <td
-                  className="p-4 text-center text-gray-400"
-                  colSpan={role === "admin" ? 9 : 8}
-                >
-                  No items found
-                </td>
-              </tr>
-            )}
-      
       {/* Add/Edit Modal */}
       {showModal && role === "admin" && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">

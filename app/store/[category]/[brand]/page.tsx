@@ -63,37 +63,43 @@ export default function ItemsPage() {
   }
 
   // Update item
-  async function handleUpdate(e: any) {
-    e.preventDefault();
-    if (role !== "admin") return;
+ async function handleUpdate(e: any) {
+  e.preventDefault();
+  if (role !== "admin") return;
 
-    const token = document.cookie
-      .split("; ")
-      .find((c) => c.startsWith("token="))
-      ?.split("=")[1];
+  const token = document.cookie
+    .split("; ")
+    .find((c) => c.startsWith("token="))
+    ?.split("=")[1];
 
-    const res = await fetch(`/api/items/${editingItem._id}`, {
-      method: "PUT",
-      body: JSON.stringify({ name, type, model, stock, sellingPrice }),
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
+  const formData = new FormData();
+  formData.append("name", name);
+  formData.append("type", type);
+  formData.append("model", model);
+  formData.append("stock", stock.toString());
+  formData.append("sellingPrice", sellingPrice.toString());
 
-    if (res.ok) {
-      setShowModal(false);
-      setEditingItem(null);
-      setIsEditing(false);
-      // Refresh items
-      fetch(`/api/items?category=${category}&brand=${brand}`)
-        .then((r) => r.json())
-        .then(setItems);
-    } else {
-      const err = await res.json();
-      alert(err.error);
-    }
+  const res = await fetch(`/api/items/${editingItem._id}`, {
+    method: "PUT",
+    body: formData,
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (res.ok) {
+    setShowModal(false);
+    setEditingItem(null);
+    setIsEditing(false);
+
+    fetch(`/api/items?category=${category}&brand=${brand}`)
+      .then((r) => r.json())
+      .then(setItems);
+  } else {
+    const err = await res.json();
+    alert(err.error);
   }
+}
 
   // Delete item
   async function handleDelete(id: string) {
