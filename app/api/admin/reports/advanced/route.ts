@@ -3,12 +3,14 @@ import Sale from "../../../../../models/Sale";
 import Expense from "../../../../../models/Expense";
 import { dbConnect } from "../../../../../lib/dbConnect";
 
+export const dynamic = "force-dynamic"; // live stats
+
 export async function GET() {
   await dbConnect();
 
   const now = new Date();
 
-  // Helpers
+  // ---------------------- Date Helpers ----------------------
   const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const startOfWeek = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay());
   const startOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1);
@@ -21,40 +23,43 @@ export async function GET() {
   const monthStart = startOfMonth(now);
   const yearStart = startOfYear(now);
 
-  // Helper to sum totals
+  // ---------------------- Helper functions ----------------------
   const sumSales = async (date: Date) => {
     const data = await Sale.aggregate([
-      { $match: { createdAt: { $gte: date } } },
-      { $group: { _id: null, total: { $sum: "$total" } } },
+      { $match: { createdAt: { $gte: date }, status: "completed" } },
+      { $group: { _id: null, totalRevenue: { $sum: "$totalRevenue" }, totalCost: { $sum: "$totalCost" } } },
+    ]);
+    return data[0] || { totalRevenue: 0, totalCost: 0 };
+  };
+
+  const sumExpenses = async (date: Date) => {
+    const data = await Expense.aggregate([
+      { $match: { createdAt: { $gte: date }, status: "approved" } },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
     ]);
     return data[0]?.total || 0;
   };
 
+  // ---------------------- BASIC TOTALS ----------------------
+  const todayData = await sumSales(today);
+  const todayExpenses = await sumExpenses(today);
+  const yesterdayData = await sumSales(yesterday);
+  const weeklyData = await sumSales(sevenDaysAgo);
+  const monthlyData = await sumSales(thirtyDaysAgo);
+  const thisMonthData = await sumSales(monthStart);
+  const thisYearData = await sumSales(yearStart);
 
-  // ==== BASIC TOTALS ====
-  const todaySales = await sumSales(today);
-  const yesterdaySales = await Sale.aggregate([
-    { $match: { createdAt: { $gte: yesterday, $lt: today } } },
-    { $group: { _id: null, total: { $sum: "$total" } } },
-  ]);
+  const totalData = await sumSales(new Date(0)); // all-time
+  const totalExpenses = await sumExpenses(new Date(0));
 
-  const weeklySales = await sumSales(sevenDaysAgo);
-  const monthlySales = await sumSales(thirtyDaysAgo);
-  const thisMonthSales = await sumSales(monthStart);
-  const thisYearSales = await sumSales(yearStart);
+  const totalRevenue = totalData.totalRevenue;
+  const totalCOGS = totalData.totalCost;
+  const netCash = totalRevenue - totalCOGS - totalExpenses;
 
-  const totalRevenue = await sumSales(new Date(0));
-  const totalSalesCount = await Sale.countDocuments();
-
-  // ==== BEST-SELLING ITEMS ====
+  // ---------------------- BEST-SELLING ITEMS ----------------------
   const bestSellingItems = await Sale.aggregate([
-    {
-      $group: {
-        _id: "$itemId",
-        totalQty: { $sum: "$quantity" },
-        totalRevenue: { $sum: "$total" },
-      },
-    },
+    { $match: { status: "completed" } },
+    { $group: { _id: "$itemId", totalQty: { $sum: "$quantity" }, totalRevenue: { $sum: "$totalRevenue" } } },
     { $sort: { totalQty: -1 } },
     { $limit: 10 },
     {
@@ -65,11 +70,12 @@ export async function GET() {
         as: "item",
       },
     },
-    { $unwind: "$item" }
+    { $unwind: "$item" },
   ]);
 
-  // ==== SALES BY CATEGORY ====
+  // ---------------------- SALES BY CATEGORY ----------------------
   const categorySales = await Sale.aggregate([
+    { $match: { status: "completed" } },
     {
       $lookup: {
         from: "items",
@@ -82,107 +88,83 @@ export async function GET() {
     {
       $group: {
         _id: "$item.category",
-        totalRevenue: { $sum: "$total" },
+        totalRevenue: { $sum: "$totalRevenue" },
         totalQty: { $sum: "$quantity" },
       },
     },
-    { $sort: { totalRevenue: -1 } }
+    { $sort: { totalRevenue: -1 } },
   ]);
 
-  // ==== HOURLY SALES (for today's POS chart) ====
+  // ---------------------- HOURLY SALES (today) ----------------------
   const hourlySales = await Sale.aggregate([
-    { $match: { createdAt: { $gte: today } } },
-    {
-      $group: {
-        _id: { $hour: "$createdAt" },
-        total: { $sum: "$total" },
-      },
-    },
-    { $sort: { "_id": 1 } }
+    { $match: { createdAt: { $gte: today }, status: "completed" } },
+    { $group: { _id: { $hour: "$createdAt" }, totalRevenue: { $sum: "$totalRevenue" } } },
+    { $sort: { "_id": 1 } },
   ]);
-// ==== TOTAL EXPENSES ====
-const expenseAgg = await Expense.aggregate([
-  {
-    $group: {
-      _id: null,
-      total: { $sum: "$amount" }
-    }
-  }
-]);
 
-const totalExpenses = expenseAgg[0]?.total || 0;
-
-// ==== NET CASH ====
-const netCash = totalRevenue - totalExpenses;
-
-
-
-
-  // ==== DAILY SALES (last 30 days chart) ====
+  // ---------------------- DAILY SALES / EXPENSES (last 30 days) ----------------------
   const dailySales = await Sale.aggregate([
-    { $match: { createdAt: { $gte: thirtyDaysAgo } } },
+    { $match: { createdAt: { $gte: thirtyDaysAgo }, status: "completed" } },
     {
       $group: {
         _id: {
           day: { $dayOfMonth: "$createdAt" },
           month: { $month: "$createdAt" },
-          year: { $year: "$createdAt" }
+          year: { $year: "$createdAt" },
         },
-        total: { $sum: "$total" }
-      }
+        totalRevenue: { $sum: "$totalRevenue" },
+        totalCost: { $sum: "$totalCost" },
+      },
     },
-    { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } }
+    { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } },
   ]);
 
-
-  // ==== DAILY EXPENSES (last 30 days) ====
-const dailyExpenses = await Expense.aggregate([
-  { $match: { createdAt: { $gte: thirtyDaysAgo } } },
-  {
-    $group: {
-      _id: {
-        day: { $dayOfMonth: "$createdAt" },
-        month: { $month: "$createdAt" },
-        year: { $year: "$createdAt" },
+  const dailyExpenses = await Expense.aggregate([
+    { $match: { createdAt: { $gte: thirtyDaysAgo }, status: "approved" } },
+    {
+      $group: {
+        _id: {
+          day: { $dayOfMonth: "$createdAt" },
+          month: { $month: "$createdAt" },
+          year: { $year: "$createdAt" },
+        },
+        total: { $sum: "$amount" },
       },
-      total: { $sum: "$amount" },
     },
-  },
-  { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } },
-]);
-// ==== NET CASH PER DAY ====
-const netCashDaily = dailySales.map((saleDay) => {
-  const expenseDay = dailyExpenses.find(
-    (e) =>
-      e._id.day === saleDay._id.day &&
-      e._id.month === saleDay._id.month &&
-      e._id.year === saleDay._id.year
-  );
+    { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } },
+  ]);
 
-  return {
-    _id: saleDay._id,
-    net: saleDay.total - (expenseDay?.total || 0),
-  };
-});
+  const netCashDaily = dailySales.map((saleDay) => {
+    const expenseDay = dailyExpenses.find(
+      (e) =>
+        e._id.day === saleDay._id.day &&
+        e._id.month === saleDay._id.month &&
+        e._id.year === saleDay._id.year
+    );
+    return {
+      _id: saleDay._id,
+      net: saleDay.totalRevenue - saleDay.totalCost - (expenseDay?.total || 0),
+    };
+  });
 
   return Response.json({
-    todaySales,
-    yesterdaySales: yesterdaySales[0]?.total || 0,
-    weeklySales,
-    monthlySales,
-    thisMonthSales,
-    thisYearSales,
+    today: { revenue: todayData.totalRevenue, COGS: todayData.totalCost, expenses: todayExpenses },
+    yesterday: { revenue: yesterdayData.totalRevenue, COGS: yesterdayData.totalCost },
+    weekly: { revenue: weeklyData.totalRevenue, COGS: weeklyData.totalCost },
+    monthly: { revenue: monthlyData.totalRevenue, COGS: monthlyData.totalCost },
+    thisMonth: { revenue: thisMonthData.totalRevenue, COGS: thisMonthData.totalCost },
+    thisYear: { revenue: thisYearData.totalRevenue, COGS: thisYearData.totalCost },
     totalRevenue,
-    totalSalesCount,
-
+    totalCOGS,
     totalExpenses,
     netCash,
+    totalSalesCount: await Sale.countDocuments({ status: "completed" }),
 
     bestSellingItems,
     categorySales,
     hourlySales,
     dailySales,
-    netCashDaily,
     dailyExpenses,
+    netCashDaily,
   });
 }

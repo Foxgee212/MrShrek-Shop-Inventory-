@@ -4,63 +4,81 @@ import Sale from "../../../../models/Sale";
 import Expense from "../../../../models/Expense";
 import { dbConnect } from "../../../../lib/dbConnect";
 
+export const dynamic = "force-dynamic"; // ensure live stats
+
 export async function GET() {
   await dbConnect();
 
   const totalProducts = await Item.countDocuments();
   const lowStock = await Item.countDocuments({ stock: { $lt: 2 } });
   const totalUsers = await User.countDocuments();
-  
+
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  // =========================
-  // TODAY SALES
-  // =========================
-  const todaySales = await Sale.aggregate([
-    { $match: { createdAt: { $gte: today } } },
-    { $group: { _id: null, total: { $sum: "$total" } } }
+  // ------------------- TODAY SALES -------------------
+  const todaySalesAgg = await Sale.aggregate([
+    { $match: { createdAt: { $gte: today }, status: "completed" } },
+    {
+      $group: {
+        _id: null,
+        totalRevenue: { $sum: "$totalRevenue" },
+        totalCost: { $sum: "$totalCost" },
+      },
+    },
   ]);
 
-  // =========================
-  // TODAY EXPENSES
-  // =========================
-  const todayExpenses = await Expense.aggregate([
-    { $match: { createdAt: { $gte: today } } },
-    { $group: { _id: null, total: { $sum: "$amount" } } }
+  const todayExpensesAgg = await Expense.aggregate([
+    { $match: { createdAt: { $gte: today }, status: "approved" } },
+    { $group: { _id: null, total: { $sum: "$amount" } } },
   ]);
 
-  // =========================
-  // TOTAL EXPENSES (LIFETIME)
-  // =========================
-  const totalExpenses = await Expense.aggregate([
-    { $group: { _id: null, total: { $sum: "$amount" } } }
+  const todayRevenue = todaySalesAgg[0]?.totalRevenue || 0;
+  const todayCOGS = todaySalesAgg[0]?.totalCost || 0;
+  const todayProfit = todayRevenue - todayCOGS - (todayExpensesAgg[0]?.total || 0);
+
+  // ------------------- LIFETIME TOTALS -------------------
+  const totalRevenueAgg = await Sale.aggregate([
+    { $match: { status: "completed" } },
+    {
+      $group: {
+        _id: null,
+        totalRevenue: { $sum: "$totalRevenue" },
+        totalCost: { $sum: "$totalCost" },
+      },
+    },
   ]);
 
-  // =========================
-// TOTAL REVENUE (LIFETIME)
-// =========================
-const totalRevenueAgg = await Sale.aggregate([
-  { $group: { _id: null, total: { $sum: "$total" } } },
-]);
-const totalRevenue = totalRevenueAgg[0]?.total || 0;
+  const totalExpensesAgg = await Expense.aggregate([
+    { $match: { status: "approved" } },
+    { $group: { _id: null, total: { $sum: "$amount" } } },
+  ]);
 
-// =========================
-// NET CASH BALANCE (Lifetime)
-// =========================
-const balance = totalRevenue - (totalExpenses[0]?.total || 0);
+  const totalRevenue = totalRevenueAgg[0]?.totalRevenue || 0;
+  const totalCOGS = totalRevenueAgg[0]?.totalCost || 0;
+  const totalExpenses = totalExpensesAgg[0]?.total || 0;
+  const totalProfit = totalRevenue - totalCOGS - totalExpenses;
 
+  // ------------------- NET BALANCE -------------------
+  const balance = totalRevenue - totalExpenses;
 
   return new Response(
     JSON.stringify({
       totalProducts,
       lowStock,
       totalUsers,
-      todaySales: todaySales[0]?.total || 0,
-      todayExpenses: todayExpenses[0]?.total || 0,
-      totalExpenses: totalExpenses[0]?.total || 0,
+
+      todayRevenue,
+      todayExpenses: todayExpensesAgg[0]?.total || 0,
+      todayCOGS,
+      todayProfit,
+
       totalRevenue,
+      totalExpenses,
+      totalCOGS,
+      totalProfit,
       balance,
-    })
+    }),
+    { status: 200 }
   );
 }

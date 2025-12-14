@@ -4,7 +4,7 @@ import { verifyTokenFromReq } from "../../../lib/auth";
 
 // Define the expected request body shape
 interface ExpenseBody {
-  type: "stock_purchase" | "withdrawal" | "misc";
+  type:  "withdrawal" | "misc";
   amount: number;
   description?: string;
   category?: string;

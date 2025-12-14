@@ -85,8 +85,11 @@ export default function ItemsPage() {
 
             {/* Stock + Price */}
             <div className="mt-1 text-sm text-gray-600 flex flex-col gap-1">
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 font-bold">
                 <Layers size={16} /> Stock: {item.stock}
+              </div>
+              <div className="flex items-center gap-1">
+                <Layers size={16} /> Type: {item.type}
               </div>
               <div className="flex items-center gap-1 font-bold text-green-700 text-2xl">
                 <Tag size={16} /> ₦{item.sellingPrice.toLocaleString()}

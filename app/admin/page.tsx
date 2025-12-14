@@ -7,10 +7,17 @@ type Stats = {
   totalProducts: number;
   lowStock: number;
   totalUsers: number;
-  todaySales: number;
+
+  todayRevenue: number;
   todayExpenses: number;
-  totalExpenses: number;
+  todayCOGS: number;
+  todayProfit: number;
+
   totalRevenue: number;
+  totalExpenses: number;
+  totalCOGS: number;
+  totalProfit: number;
+
   balance: number;
 };
 
@@ -19,20 +26,25 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  useEffect(() => {
-    async function loadStats() {
-      try {
-        const res = await fetch("/api/admin/stats");
-        if (!res.ok) throw new Error("Failed to load stats");
-        const data = await res.json();
-        setStats(data);
-      } catch (err) {
-        setError(true);
-      } finally {
-        setLoading(false);
-      }
+  const fetchStats = async () => {
+    try {
+      const res = await fetch("/api/admin/stats", { cache: "no-store" });
+      if (!res.ok) throw new Error("Failed to load stats");
+      const data = await res.json();
+      setStats(data);
+      setError(false);
+    } catch (err) {
+      setError(true);
+    } finally {
+      setLoading(false);
     }
-    loadStats();
+  };
+
+  useEffect(() => {
+    fetchStats();
+
+    const interval = setInterval(fetchStats, 10000); // refresh every 10s
+    return () => clearInterval(interval);
   }, []);
 
   const formatCurrency = (num: number) =>
@@ -43,7 +55,7 @@ export default function AdminDashboard() {
       <div className="p-6 animate-pulse">
         <h1 className="text-3xl font-bold mb-6">Loading Dashboard...</h1>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          {[1, 2, 3, 4].map((i) => (
+          {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="h-24 bg-gray-200 rounded"></div>
           ))}
         </div>
@@ -83,9 +95,10 @@ export default function AdminDashboard() {
           <p className="text-3xl font-bold">{stats.totalUsers}</p>
         </div>
 
+        {/* Daily Revenue & Profit */}
         <div className="p-4 bg-purple-500 text-white rounded shadow">
-          <h2 className="text-xl">Today Sales</h2>
-          <p className="text-3xl font-bold">{formatCurrency(stats.todaySales)}</p>
+          <h2 className="text-xl">Today Revenue</h2>
+          <p className="text-3xl font-bold">{formatCurrency(stats.todayRevenue)}</p>
         </div>
 
         <div className="p-4 bg-yellow-500 text-white rounded shadow">
@@ -93,14 +106,25 @@ export default function AdminDashboard() {
           <p className="text-3xl font-bold">{formatCurrency(stats.todayExpenses)}</p>
         </div>
 
+        <div className="p-4 bg-pink-500 text-white rounded shadow">
+          <h2 className="text-xl">Today Profit</h2>
+          <p className="text-3xl font-bold">{formatCurrency(stats.todayProfit)}</p>
+        </div>
+
+        {/* Lifetime Revenue & Profit */}
+        <div className="p-4 bg-indigo-500 text-white rounded shadow">
+          <h2 className="text-xl">Total Revenue</h2>
+          <p className="text-3xl font-bold">{formatCurrency(stats.totalRevenue)}</p>
+        </div>
+
         <div className="p-4 bg-orange-500 text-white rounded shadow">
           <h2 className="text-xl">Total Expenses</h2>
           <p className="text-3xl font-bold">{formatCurrency(stats.totalExpenses)}</p>
         </div>
 
-        <div className="p-4 bg-indigo-500 text-white rounded shadow">
-          <h2 className="text-xl">Total Revenue</h2>
-          <p className="text-3xl font-bold">{formatCurrency(stats.totalRevenue)}</p>
+        <div className="p-4 bg-teal-500 text-white rounded shadow">
+          <h2 className="text-xl">Total Profit</h2>
+          <p className="text-3xl font-bold">{formatCurrency(stats.totalProfit)}</p>
         </div>
 
         <div className="p-4 bg-teal-600 text-white rounded shadow md:col-span-2">
@@ -108,7 +132,6 @@ export default function AdminDashboard() {
           <p className="text-3xl font-bold">{formatCurrency(stats.balance)}</p>
         </div>
       </div>
-
 
       {/* MANAGEMENT LINKS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
