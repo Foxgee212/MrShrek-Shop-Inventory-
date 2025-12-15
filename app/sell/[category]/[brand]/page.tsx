@@ -1,20 +1,25 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Package, Layers, Tag, ShoppingCart, Search } from "lucide-react";
 
 export default function ItemsPage() {
-  const { category, brand } = useParams();
+  const { category, brand } = useParams(); // Fetch parameters from the URL
+  console.log("Params:", category, brand);
   const [items, setItems] = useState<any[]>([]);
   const [query, setQuery] = useState("");
 
+  // Wait for params to be available before fetching
   useEffect(() => {
-    fetch(`/api/items?category=${category}&brand=${brand}`)
-      .then((r) => r.json())
-      .then(setItems);
-  }, [category, brand]);
+    if (category && brand) {  // Check if params are available
+      fetch(`/api/items?category=${category}&brand=${brand}`)
+        .then((r) => r.json())
+        .then(setItems)
+        .catch((error) => console.error("Error fetching items:", error));
+    }
+  }, [category, brand]); // Refetch when category or brand changes
 
+  console.log("Fetched items:", items);
   const filtered = items.filter((i) =>
     `${i.name} ${i.model} ${i.type}`
       .toLowerCase()
@@ -69,12 +74,7 @@ export default function ItemsPage() {
         <div
           key={item._id}
           className={`flex items-center justify-between p-4 mb-3 rounded-xl border shadow-sm transition-all 
-            ${
-              item.stock === 0
-                ? "bg-red-100 border-red-500"
-                : "bg-white hover:shadow-md"
-            }
-          `}
+            ${item.stock === 0 ? "bg-red-100 border-red-500" : "bg-white hover:shadow-md"}`}
         >
           {/* Left Section */}
           <div>
@@ -109,12 +109,7 @@ export default function ItemsPage() {
             onClick={() => sell(item)}
             disabled={item.stock === 0}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg shadow transition-all text-white
-              ${
-                item.stock === 0
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-green-600 hover:bg-green-700"
-              }
-            `}
+              ${item.stock === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"}`}
           >
             <ShoppingCart size={18} />
             Sell

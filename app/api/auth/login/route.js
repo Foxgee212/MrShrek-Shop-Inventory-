@@ -22,7 +22,7 @@ export async function POST(req) {
   const token = jwt.sign(
     { id: user._id, role: user.role },
     process.env.JWT_SECRET,
-    { expiresIn: "8h" }
+    { expiresIn: "7d" }
   );
 
   const cookie = serialize("token", token, {

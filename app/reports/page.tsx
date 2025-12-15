@@ -5,6 +5,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Legend, PieChart, Pie, Cell
 } from "recharts";
+import Link from "next/link";
 
 type DailySale = {
   _id: {
@@ -76,7 +77,16 @@ export default function ReportsPage() {
 
   return (
     <div className="p-6 space-y-8">
-      <h1 className="text-3xl font-bold mb-6">Advanced Reports</h1>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+  <h1 className="text-3xl font-bold">Advanced Reports</h1>
+
+  <Link
+    href="/reports/inventory-valuation-report"
+    className="inline-flex items-center justify-center px-4 py-2 bg-indigo-600 text-white rounded shadow hover:bg-indigo-700 transition"
+  >
+    📦 Inventory Valuation
+  </Link>
+</div>
 
       {/* TOP SUMMARY CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

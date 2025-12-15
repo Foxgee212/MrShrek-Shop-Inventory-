@@ -7,28 +7,47 @@ import Link from "next/link";
 type Brand = {
   name: string;
   hasOutOfStock: boolean;
-  categories: string[];
 };
 
-type CategoriesResponse = {
+type Category = {
+  name: string;
+  hasOutOfStock: boolean;
+  imageUrl: string;
   brands: Brand[];
 };
 
+type CategoriesResponse = {
+  categories: Category[];
+};
+
 export default function BrandPage() {
-  const { category } = useParams<{ category: string }>();
+  const params = useParams();
+  const category = decodeURIComponent(params.category as string);
+
   const [brands, setBrands] = useState<Brand[]>([]);
 
   useEffect(() => {
     async function loadBrands() {
-      const res = await fetch("/api/items/categories-with-stock");
-      const data: CategoriesResponse = await res.json();
+      try {
+        const res = await fetch("/api/items/categories-with-stock");
+        const data: CategoriesResponse = await res.json();
 
-      // Only brands that belong to this category
-      const filtered = data.brands.filter((b) =>
-        b.categories.includes(category)
-      );
+        if (!Array.isArray(data.categories)) {
+          console.error("Invalid API response", data);
+          return;
+        }
 
-      setBrands(filtered);
+        const normalize = (str: string) =>
+          str.replace(/\s+/g, " ").trim().toLowerCase();
+
+        const selectedCategory = data.categories.find(
+          (c) => normalize(c.name) === normalize(category)
+        );
+
+        setBrands(selectedCategory?.brands ?? []);
+      } catch (err) {
+        console.error("Error fetching brand data", err);
+      }
     }
 
     loadBrands();
@@ -39,15 +58,14 @@ export default function BrandPage() {
       {brands.map((brand) => (
         <Link
           key={brand.name}
-          href={`/sell/${category}/${brand.name}`}
-          className="relative bg-white rounded-lg shadow p-6 text-lg font-bold text-center hover:bg-gray-100"
+          href={`/sell/${encodeURIComponent(category)}/${encodeURIComponent(brand.name)}`}
+          className="relative bg-white rounded-lg shadow p-6 text-center hover:bg-gray-100 transition"
         >
-          {/* 🔴 Stock warning */}
           {brand.hasOutOfStock && (
             <span className="absolute top-2 right-2 w-3 h-3 rounded-full bg-red-600 animate-pulse" />
           )}
 
-          {brand.name}
+          <div className="text-lg font-bold">{brand.name}</div>
         </Link>
       ))}
     </div>

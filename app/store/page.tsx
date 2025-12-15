@@ -27,6 +27,7 @@ export default function InventoryPage() {
   const [image, setImage] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(false)
 
   // Form fields
   const [name, setName] = useState("");
@@ -58,6 +59,7 @@ export default function InventoryPage() {
   // Add new item
   async function handleAdd(e: any) {
     e.preventDefault();
+    setLoading(true)
     if (role !== "admin") return;
 
     const token = document.cookie
@@ -118,6 +120,7 @@ export default function InventoryPage() {
   const data: CategoriesResponse = await res.json();
 
   setCategories(Array.isArray(data.categories) ? data.categories : []);
+
 }
 
   
@@ -244,7 +247,7 @@ export default function InventoryPage() {
                   <X size={16} /> Cancel
                 </button>
                 <button type="submit" className="bg-blue-600 text-white px-4 py-1 rounded flex items-center gap-1">
-                  <Plus size={16} /> Add Item
+                  <Plus size={16} />{ loading ? "Adding Item..." : "Add item"}
                 </button>
               </div>
             </form>

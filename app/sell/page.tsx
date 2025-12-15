@@ -1,32 +1,45 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
+
+type Brand = {
+  name: string;
+  hasOutOfStock: boolean;
+};
 
 type Category = {
   name: string;
   hasOutOfStock: boolean;
   imageUrl: string;
+  brands: Brand[];
 };
-type Brand = {
-  name: string;
-  hasOutOfStock: boolean;
-  categories: string[];
-};
+
 type CategoriesResponse = {
   categories: Category[];
-  brands: Brand[];
 };
 
 export default function SellPage() {
   const [categories, setCategories] = useState<Category[]>([]);
-  const [brands, setBrands] = useState<Brand[]>([]);
 
-  async function fetchCategories() {
+async function fetchCategories() {
+  try {
     const res = await fetch("/api/items/categories-with-stock");
+
+    if (!res.ok) {
+      console.error("Failed to fetch categories");
+      return;
+    }
+
     const data: CategoriesResponse = await res.json();
-    setCategories(data.categories);
-    setBrands(data.brands);
+
+    setCategories(Array.isArray(data.categories) ? data.categories : []);
+  } catch (err) {
+    console.error("Fetch error:", err);
+    setCategories([]);
   }
+}
+
 
   useEffect(() => {
     fetchCategories();
@@ -46,14 +59,16 @@ export default function SellPage() {
         >
           {/* Category Image */}
           <div className="h-32 w-full overflow-hidden rounded-t-xl">
-            <img
-              src={cat.imageUrl}
-              alt={cat.name}
-              className="w-full h-full object-scale-down"
-            />
+            {cat.imageUrl && (
+              <img
+                src={cat.imageUrl}
+                alt={cat.name}
+                className="w-full h-full object-scale-down"
+              />
+            )}
           </div>
 
-          {/* Red alert for out-of-stock */}
+          {/* Category out-of-stock indicator */}
           {cat.hasOutOfStock && (
             <span className="absolute top-2 right-2 w-3 h-3 rounded-full bg-red-600 animate-pulse" />
           )}

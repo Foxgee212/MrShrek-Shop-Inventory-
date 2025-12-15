@@ -4,7 +4,7 @@ import { verifyTokenFromReq } from "../../../lib/auth";
 
 // Define the expected request body shape
 interface ExpenseBody {
-  type:  "withdrawal" | "misc";
+  type:   "withdrawal" | "misc";
   amount: number;
   description?: string;
   category?: string;
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
   try {
     await dbConnect();
 
-    const tokenData = await verifyTokenFromReq(req);
+    const tokenData = await verifyTokenFromReq(req, "admin");
 
     // Ensure tokenData exists and has id/email
     if (!tokenData) return new Response("Unauthorized", { status: 401 });

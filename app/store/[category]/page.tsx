@@ -7,15 +7,23 @@ import Link from "next/link";
 type Brand = {
   name: string;
   hasOutOfStock: boolean;
-  categories: string[];
 };
 
-type CategoriesResponse = {
+type Category = {
+  name: string;
+  hasOutOfStock: boolean;
+  imageUrl: string;
   brands: Brand[];
 };
 
+type CategoriesResponse = {
+  categories: Category[];
+};
+
 export default function BrandPage() {
-  const { category } = useParams<{ category: string }>();
+  const params = useParams();
+  const category = decodeURIComponent(params.category as string);
+  
   const [brands, setBrands] = useState<Brand[]>([]);
 
   useEffect(() => {
@@ -24,11 +32,18 @@ export default function BrandPage() {
       const data: CategoriesResponse = await res.json();
 
       // Only brands that belong to this category
-      const filtered = data.brands.filter((b) =>
-        b.categories.includes(category)
-      );
+     if (!Array.isArray(data.categories)) {
+          console.error("Invalid API response", data);
+          return;
+        }
 
-      setBrands(filtered);
+        const normalize = (str: string) =>
+          str.replace(/\s+/g, " ").trim().toLowerCase();
+
+        const selectedCategory = data.categories.find(
+          (c) => normalize(c.name) === normalize(category)
+        );
+      setBrands(selectedCategory?.brands ?? []);
     }
 
     loadBrands();

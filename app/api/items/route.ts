@@ -1,12 +1,8 @@
-import { dbConnect } from "../../../lib/dbConnect";
-import Item from "../../../models/Item";
-import ActivityLog from "../../../models/ActivityLog";
-import { verifyTokenFromReq } from "../../../lib/auth";
+import { dbConnect } from "@/lib/dbConnect";
+import Item from "@/models/Item";
+import ActivityLog from "@/models/ActivityLog";
+import { verifyTokenFromReq } from "@/lib/auth";
 import { v2 as cloudinary } from "cloudinary";
-import type { InferSchemaType } from "mongoose";
-
-type ItemType = InferSchemaType<typeof Item.schema>;
-
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -15,77 +11,97 @@ cloudinary.config({
 });
 
 // Upload helper
-async function uploadToCloudinary(buffer: Buffer) {
+async function uploadToCloudinary(buffer: Buffer): Promise<string> {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       { folder: "inventory" },
       (err, result) => {
         if (err) return reject(err);
-        resolve(result?.secure_url);
+        resolve(result!.secure_url);
       }
     );
     stream.end(buffer);
   });
 }
-
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const category = searchParams.get("category");
-  const brand = searchParams.get("brand");
-
   await dbConnect();
 
-  const filter: any = {};
-  if (category) filter.category = category;
-  if (brand) filter.brand = brand;
+  try {
+    const { searchParams } = new URL(req.url);
+    const category = searchParams.get("category");
+    const brand = searchParams.get("brand");
 
-  const items = await Item.find(filter).sort({
-    category: 1,
-    brand: 1,
-    model: 1,
-  });
+    if (!category || !brand) {
+      return Response.json(
+        { error: "category and brand are required" },
+        { status: 400 }
+      );
+    }
 
-  return Response.json(items);
+    const items = await Item.find({
+      category: decodeURIComponent(category),
+      brand: decodeURIComponent(brand),
+    });
+
+    return Response.json(items);
+  } catch (err: any) {
+    return Response.json({ error: err.message }, { status: 500 });
+  }
 }
+
 
 export async function POST(req: Request) {
   await dbConnect();
 
   try {
-    const user = verifyTokenFromReq(req, "admin");
+    const user = await verifyTokenFromReq(req, "admin"); // Only admin can add
 
     const form = await req.formData();
     const file = form.get("image") as File | null;
 
-    const itemData: any = {
-      name: form.get("name") || "",
-      category: form.get("category") || "",
-      brand: form.get("brand") || "",
-      type: form.get("type") || "",
-      model: form.get("model") || "",
-      stock: Number(form.get("stock") || 0),
-      costPrice: Number(form.get("costPrice") || 0),
-      sellingPrice: Number(form.get("sellingPrice") || 0),
-      description: form.get("description") || "",
-    };
+    // Collect required fields
+    const name = form.get("name")?.toString();
+    const category = form.get("category")?.toString();
+    const brand = form.get("brand")?.toString();
+    const type = form.get("type")?.toString();
+    const model = form.get("model")?.toString();
+    const stock = form.get("stock") ? Number(form.get("stock")) : 0;
+    const costPrice = form.get("costPrice") ? Number(form.get("costPrice")) : 0;
+    const sellingPrice = form.get("sellingPrice") ? Number(form.get("sellingPrice")) : 0;
+    const description = form.get("description")?.toString() || "";
 
-    // Handle image upload
-    if (file) {
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      itemData.photo = await uploadToCloudinary(buffer);
+    if (!name || !category || !brand || !type || !model) {
+      return Response.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-const item: ItemType = await Item.create(itemData);
+    // Upload image if provided
+    let photo = "";
+    if (file) {
+      const buffer = Buffer.from(await file.arrayBuffer());
+      photo = await uploadToCloudinary(buffer);
+    }
 
-
-    await ActivityLog.create({
-      userId: user.id,
-      action: "create_item",
-      meta: { itemId: item._id },
+    const newItem = await Item.create({
+      name,
+      category,
+      brand,
+      type,
+      model,
+      stock,
+      costPrice,
+      sellingPrice,
+      description,
+      photo,
     });
 
-    return Response.json(item, { status: 201 });
+    // Log activity
+    await ActivityLog.create({
+      userId: user.id,
+      action: "add_item",
+      meta: { itemId: newItem._id, name: newItem.name },
+    });
+
+    return Response.json(newItem, { status: 201 });
   } catch (err: any) {
     return Response.json({ error: err.message }, { status: 500 });
   }
