@@ -5,7 +5,7 @@ const ExpenseSchema = new mongoose.Schema(
     /* ---------------- Classification ---------------- */
     type: {
       type: String,
-      enum: ["stock_purchase", "withdrawal", "misc"],
+      enum: [ "rent", "electricity", "internet", "withdrawal", "misc", "business_setup", "transport", "supplier_payment", "salary", "taxes" ],
       required: true,
       index: true,
     },

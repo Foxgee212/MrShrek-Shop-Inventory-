@@ -51,12 +51,6 @@ const SaleSchema = new mongoose.Schema(
       required: true,
     },
 
-    netCash: {
-      type: Number,
-      required: true,
-      index: true,
-    },
-
     /* ---------------- Payment Tracking ---------------- */
     paymentMethod: {
       type: String,

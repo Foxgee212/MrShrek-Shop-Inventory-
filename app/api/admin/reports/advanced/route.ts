@@ -3,25 +3,22 @@ import Sale from "../../../../../models/Sale";
 import Expense from "../../../../../models/Expense";
 import { dbConnect } from "../../../../../lib/dbConnect";
 
-export const dynamic = "force-dynamic"; // live stats
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   await dbConnect();
 
   const now = new Date();
 
-  // ---------------------- Date Helpers ----------------------
+  // ---------------------- Date helpers ----------------------
   const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const startOfWeek = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay());
   const startOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1);
   const startOfYear = (d: Date) => new Date(d.getFullYear(), 0, 1);
 
   const today = startOfDay(now);
-  const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const monthStart = startOfMonth(now);
   const yearStart = startOfYear(now);
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
   // ---------------------- Helper functions ----------------------
   const sumSales = async (date: Date) => {
@@ -34,7 +31,13 @@ export async function GET() {
 
   const sumExpenses = async (date: Date) => {
     const data = await Expense.aggregate([
-      { $match: { createdAt: { $gte: date }, status: "approved" } },
+      { 
+        $match: { 
+          createdAt: { $gte: date }, 
+          status: "approved", 
+          type: { $ne: "stock_purchase" } // exclude stock purchases
+        } 
+      },
       { $group: { _id: null, total: { $sum: "$amount" } } },
     ]);
     return data[0]?.total || 0;
@@ -43,13 +46,9 @@ export async function GET() {
   // ---------------------- BASIC TOTALS ----------------------
   const todayData = await sumSales(today);
   const todayExpenses = await sumExpenses(today);
-  const yesterdayData = await sumSales(yesterday);
-  const weeklyData = await sumSales(sevenDaysAgo);
-  const monthlyData = await sumSales(thirtyDaysAgo);
-  const thisMonthData = await sumSales(monthStart);
-  const thisYearData = await sumSales(yearStart);
 
-  const totalData = await sumSales(new Date(0)); // all-time
+  const monthlyData = await sumSales(thirtyDaysAgo);
+  const totalData = await sumSales(new Date(0));
   const totalExpenses = await sumExpenses(new Date(0));
 
   const totalRevenue = totalData.totalRevenue;
@@ -57,11 +56,11 @@ export async function GET() {
   const netCash = totalRevenue - totalCOGS - totalExpenses;
 
   // ---------------------- BEST-SELLING ITEMS ----------------------
+  // Only show items that are currently out-of-stock
   const bestSellingItems = await Sale.aggregate([
     { $match: { status: "completed" } },
     { $group: { _id: "$itemId", totalQty: { $sum: "$quantity" }, totalRevenue: { $sum: "$totalRevenue" } } },
     { $sort: { totalQty: -1 } },
-    { $limit: 10 },
     {
       $lookup: {
         from: "items",
@@ -71,6 +70,8 @@ export async function GET() {
       },
     },
     { $unwind: "$item" },
+    { $match: { "item.stock": { $lte: 0 } } }, // only sold-out items
+    { $limit: 10 },
   ]);
 
   // ---------------------- SALES BY CATEGORY ----------------------
@@ -95,13 +96,6 @@ export async function GET() {
     { $sort: { totalRevenue: -1 } },
   ]);
 
-  // ---------------------- HOURLY SALES (today) ----------------------
-  const hourlySales = await Sale.aggregate([
-    { $match: { createdAt: { $gte: today }, status: "completed" } },
-    { $group: { _id: { $hour: "$createdAt" }, totalRevenue: { $sum: "$totalRevenue" } } },
-    { $sort: { "_id": 1 } },
-  ]);
-
   // ---------------------- DAILY SALES / EXPENSES (last 30 days) ----------------------
   const dailySales = await Sale.aggregate([
     { $match: { createdAt: { $gte: thirtyDaysAgo }, status: "completed" } },
@@ -120,7 +114,7 @@ export async function GET() {
   ]);
 
   const dailyExpenses = await Expense.aggregate([
-    { $match: { createdAt: { $gte: thirtyDaysAgo }, status: "approved" } },
+    { $match: { createdAt: { $gte: thirtyDaysAgo }, status: "approved", type: { $ne: "stock_purchase" } } },
     {
       $group: {
         _id: {
@@ -149,11 +143,7 @@ export async function GET() {
 
   return Response.json({
     today: { revenue: todayData.totalRevenue, COGS: todayData.totalCost, expenses: todayExpenses },
-    yesterday: { revenue: yesterdayData.totalRevenue, COGS: yesterdayData.totalCost },
-    weekly: { revenue: weeklyData.totalRevenue, COGS: weeklyData.totalCost },
     monthly: { revenue: monthlyData.totalRevenue, COGS: monthlyData.totalCost },
-    thisMonth: { revenue: thisMonthData.totalRevenue, COGS: thisMonthData.totalCost },
-    thisYear: { revenue: thisYearData.totalRevenue, COGS: thisYearData.totalCost },
     totalRevenue,
     totalCOGS,
     totalExpenses,
@@ -162,7 +152,6 @@ export async function GET() {
 
     bestSellingItems,
     categorySales,
-    hourlySales,
     dailySales,
     dailyExpenses,
     netCashDaily,

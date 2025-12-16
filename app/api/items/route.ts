@@ -1,5 +1,6 @@
 import { dbConnect } from "@/lib/dbConnect";
 import Item from "@/models/Item";
+import InventoryTransaction from "@/models/InventoryTransaction";
 import ActivityLog from "@/models/ActivityLog";
 import { verifyTokenFromReq } from "@/lib/auth";
 import { v2 as cloudinary } from "cloudinary";
@@ -93,6 +94,17 @@ export async function POST(req: Request) {
       description,
       photo,
     });
+
+    // ------------------- Record Inventory Transaction -------------------
+    if (stock > 0 && costPrice > 0) {
+      await InventoryTransaction.create({
+        itemId: newItem._id,
+        type: "purchase",
+        quantity: stock,
+        unitCost: costPrice,
+        userId: user.id,
+      });
+    }
 
     // Log activity
     await ActivityLog.create({

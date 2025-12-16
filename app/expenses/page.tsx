@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 type Expense = {
   _id: string;
-  type: "stock_purchase" | "withdrawal" | "misc";
+  type: "withdrawal" | "misc"; // stock_purchase removed
   amount: number;
   description: string;
   category?: string;
@@ -107,7 +107,6 @@ export default function ExpensePage() {
             value={form.type}
             onChange={handleChange}
           >
-            <option value="stock_purchase">Stock Purchase</option>
             <option value="withdrawal">Withdrawal</option>
             <option value="misc">Miscellaneous</option>
           </select>
@@ -136,6 +135,7 @@ export default function ExpensePage() {
             value={form.category}
             onChange={handleChange}
           />
+
           <label htmlFor="paymentMethod" className="font-semibold">
             Payment Method
           </label>
@@ -173,7 +173,8 @@ export default function ExpensePage() {
             value={form.linkedItemId}
             onChange={handleChange}
           />
-          <label htmlFor="status" className="font-semibold">  Expense Status</label>
+
+          <label htmlFor="status" className="font-semibold">Expense Status</label>
           <select
             name="status"
             className="p-3 border rounded-xl"
@@ -184,7 +185,8 @@ export default function ExpensePage() {
             <option value="pending">Pending</option>
             <option value="cancelled">Cancelled</option>
           </select>
-          <label htmlFor="date" className="font-semibold"> Expense Date</label>
+
+          <label htmlFor="date" className="font-semibold">Expense Date</label>
           <input
             name="date"
             type="date"

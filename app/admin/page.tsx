@@ -9,16 +9,19 @@ type Stats = {
   totalUsers: number;
 
   todayRevenue: number;
-  todayExpenses: number;
+  todayExpenses: number; // now excludes stock purchases
   todayCOGS: number;
   todayProfit: number;
 
   totalRevenue: number;
-  totalExpenses: number;
+  totalExpenses: number; // now excludes stock purchases
   totalCOGS: number;
   totalProfit: number;
 
   balance: number;
+
+  totalAssets: number;
+  totalAssetValue: number;
 };
 
 export default function AdminDashboard() {
@@ -42,8 +45,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchStats();
-
-    const interval = setInterval(fetchStats, 10000); // refresh every 10s
+    const interval = setInterval(fetchStats, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -94,8 +96,18 @@ export default function AdminDashboard() {
           <h2 className="text-xl">Total Users</h2>
           <p className="text-3xl font-bold">{stats.totalUsers}</p>
         </div>
+        <div className="p-4 bg-cyan-600 text-white rounded shadow">
+          <h2 className="text-xl">Total Assets</h2>
+          <p className="text-3xl font-bold">{stats.totalAssets}</p>
+        </div>
 
-        {/* Daily Revenue & Profit */}
+        <div className="p-4 bg-cyan-700 text-white rounded shadow">
+          <h2 className="text-xl">Asset Value</h2>
+          <p className="text-3xl font-bold">
+            {formatCurrency(stats.totalAssetValue)}
+          </p>
+        </div>
+
         <div className="p-4 bg-purple-500 text-white rounded shadow">
           <h2 className="text-xl">Today Revenue</h2>
           <p className="text-3xl font-bold">{formatCurrency(stats.todayRevenue)}</p>
@@ -111,7 +123,6 @@ export default function AdminDashboard() {
           <p className="text-3xl font-bold">{formatCurrency(stats.todayProfit)}</p>
         </div>
 
-        {/* Lifetime Revenue & Profit */}
         <div className="p-4 bg-indigo-500 text-white rounded shadow">
           <h2 className="text-xl">Total Revenue</h2>
           <p className="text-3xl font-bold">{formatCurrency(stats.totalRevenue)}</p>
@@ -135,32 +146,66 @@ export default function AdminDashboard() {
 
       {/* MANAGEMENT LINKS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Link href="/store" className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50">
+        <Link
+          href="/store"
+          className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50"
+        >
           <h3 className="text-xl font-bold">Inventory Management</h3>
           <p>Add, edit, and delete products.</p>
         </Link>
 
-        <Link href="/users" className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50">
+        <Link
+          href="/inventory-transaction"
+          className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50"
+        >
+          <h3 className="text-xl font-bold">Inventory Transactions</h3>
+          <p>Track stock purchases and inventory adjustments.</p>
+        </Link>
+        <Link
+          href="/asset-management"
+          className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50"
+        >
+          <h3 className="text-xl font-bold">Asset Management</h3>
+          <p>Track business assets and purchases.</p>
+        </Link>
+
+-
+        <Link
+          href="/users"
+          className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50"
+        >
           <h3 className="text-xl font-bold">User Management</h3>
           <p>Add or remove staff accounts (admin only).</p>
         </Link>
 
-        <Link href="/purchase-orders" className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50">
+        <Link
+          href="/purchase-orders"
+          className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50"
+        >
           <h3 className="text-xl font-bold">Purchase Orders</h3>
           <p>Record new stock you bought.</p>
         </Link>
 
-        <Link href="/expenses" className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50">
+        <Link
+          href="/expenses"
+          className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50"
+        >
           <h3 className="text-xl font-bold">Expenses</h3>
-          <p>Record withdrawals, misc expenses, and stock purchases.</p>
+          <p>Record withdrawals and miscellaneous expenses.</p>
         </Link>
 
-        <Link href="/reports" className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50">
+        <Link
+          href="/reports"
+          className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50"
+        >
           <h3 className="text-xl font-bold">Reports</h3>
           <p>Daily/weekly/monthly sales breakdown.</p>
         </Link>
 
-        <Link href="/sell" className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50">
+        <Link
+          href="/sell"
+          className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50"
+        >
           <h3 className="text-xl font-bold">Go to POS</h3>
           <p>Start selling items now.</p>
         </Link>

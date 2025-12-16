@@ -2,9 +2,9 @@ import { dbConnect } from "../../../lib/dbConnect";
 import Expense from "../../../models/Expense";
 import { verifyTokenFromReq } from "../../../lib/auth";
 
-// Define the expected request body shape
+// Request body type
 interface ExpenseBody {
-  type:   "withdrawal" | "misc";
+  type: "withdrawal" | "misc"; // stock_purchase removed
   amount: number;
   description?: string;
   category?: string;
@@ -16,17 +16,17 @@ interface ExpenseBody {
   date?: string;
 }
 
-// Define the user type returned by your auth
+// User type from auth
 interface AuthUser {
   id: string;
   email: string;
-  // add more if your auth returns more fields
 }
 
 export async function GET(req: Request) {
   try {
     await dbConnect();
-    const expenses = await Expense.find().sort({ createdAt: -1 });
+    const expenses = await Expense.find({ type: { $in: ["withdrawal", "misc"] } })
+                                  .sort({ createdAt: -1 });
     return Response.json(expenses);
   } catch (err: any) {
     console.error(err);
@@ -39,8 +39,6 @@ export async function POST(req: Request) {
     await dbConnect();
 
     const tokenData = await verifyTokenFromReq(req, "admin");
-
-    // Ensure tokenData exists and has id/email
     if (!tokenData) return new Response("Unauthorized", { status: 401 });
 
     const user: AuthUser = {
@@ -48,23 +46,26 @@ export async function POST(req: Request) {
       email: (tokenData as any).email,
     };
 
-
     const body: ExpenseBody = await req.json();
 
-   const newExpense = await Expense.create({
-    type: body.type,
-    amount: body.amount,
-    description: body.description || "",
-    userId: user.id,
-    category: body.category,
-    paymentMethod: body.paymentMethod,
-    reference: body.reference,
-    supplier: body.supplier,
-    linkedItemId: body.linkedItemId || undefined, // <-- convert empty string to undefined
-    status: body.status,
-    date: body.date,
-  });
+    // Validate required fields
+    if (!body.type || !body.amount) {
+      return new Response(JSON.stringify({ error: "Type and amount are required" }), { status: 400 });
+    }
 
+    const newExpense = await Expense.create({
+      type: body.type,
+      amount: body.amount,
+      description: body.description || "",
+      userId: user.id,
+      category: body.category,
+      paymentMethod: body.paymentMethod,
+      reference: body.reference,
+      supplier: body.supplier,
+      linkedItemId: body.linkedItemId || undefined,
+      status: body.status || "approved",
+      date: body.date || new Date(),
+    });
 
     return new Response(JSON.stringify(newExpense), { status: 201 });
   } catch (err: any) {

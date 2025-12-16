@@ -90,6 +90,13 @@ export default function InventoryPage() {
     if (res.ok) {
       resetForm();
       fetchCategories();
+
+      // Fetch updated admin stats
+    const statsRes = await fetch("/api/admin/stats");
+    if (statsRes.ok) {
+      const statsData = await statsRes.json();
+      console.log("Updated Admin Stats:", statsData);
+    }
     } else {
       const err = await res.json();
       alert(err.error);
@@ -246,7 +253,7 @@ export default function InventoryPage() {
                 <button type="button" onClick={resetForm} className="px-3 py-1 border rounded flex items-center gap-1">
                   <X size={16} /> Cancel
                 </button>
-                <button type="submit" className="bg-blue-600 text-white px-4 py-1 rounded flex items-center gap-1">
+                <button type="submit" disabled={loading} className="bg-blue-600 text-white px-4 py-1 rounded flex items-center gap-1">
                   <Plus size={16} />{ loading ? "Adding Item..." : "Add item"}
                 </button>
               </div>
