@@ -54,7 +54,7 @@ export async function POST(req: Request) {
         itemId: item._id,
         type: "purchase",
         quantity: purchaseQty,
-        unitCost: costPrice,
+        costPrice: costPrice,
         userId: admin.id,
       });
 

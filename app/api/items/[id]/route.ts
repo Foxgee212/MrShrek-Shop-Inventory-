@@ -1,5 +1,6 @@
 import { dbConnect } from "@/lib/dbConnect";
 import Item from "@/models/Item";
+import InventoryTransaction from "@/models/InventoryTransaction";
 import ActivityLog from "@/models/ActivityLog";
 import { verifyTokenFromReq } from "@/lib/auth";
 import { v2 as cloudinary } from "cloudinary";
@@ -25,8 +26,8 @@ async function uploadToCloudinary(buffer: Buffer): Promise<string> {
 }
 
 /* =====================================
-   PUT (UPDATE ITEM — PARTIAL SAFE UPDATE)
-====================================== */
+   PUT (UPDATE ITEM — MANUAL SAFE UPDATE)
+===================================== */
 export async function PUT(
   req: Request,
   context: { params: Promise<{ id: string }> }
@@ -42,76 +43,65 @@ export async function PUT(
 
     const updateData: Record<string, any> = {};
 
-    // ✅ Only update fields that were sent
-    if (form.has("name")) updateData.name = form.get("name");
-    if (form.has("type")) updateData.type = form.get("type");
-    if (form.has("model")) updateData.model = form.get("model");
-    if (form.has("stock")) updateData.stock = Number(form.get("stock"));
+    // ------------------- Update fields only if sent -------------------
+    if (form.has("name")) updateData.name = form.get("name")?.toString();
+    if (form.has("category")) updateData.category = form.get("category")?.toString();
+    if (form.has("brand")) updateData.brand = form.get("brand")?.toString();
+    if (form.has("type")) updateData.type = form.get("type")?.toString();
+    if (form.has("model")) updateData.model = form.get("model")?.toString();
     if (form.has("sellingPrice"))
       updateData.sellingPrice = Number(form.get("sellingPrice"));
+    if (form.has("costPrice"))
+      updateData.costPrice = Number(form.get("costPrice"));
+    if (form.has("description"))
+      updateData.description = form.get("description")?.toString();
 
-    // 🚫 category, brand, costPrice, description NOT overwritten
-    // unless explicitly sent in the future
+    // ------------------- Handle stock adjustment -------------------
+    const currentItem = await Item.findById(id);
+    if (!currentItem) {
+      return Response.json({ error: "Item not found" }, { status: 404 });
+    }
 
-    // Image upload (optional)
+    if (form.has("stock")) {
+      const newStock = Number(form.get("stock"));
+      const diff = newStock - currentItem.stock;
+
+      if (diff !== 0) {
+        updateData.stock = newStock;
+
+        // Record inventory transaction
+        await InventoryTransaction.create({
+          itemId: id,
+          type: diff > 0 ? "purchase" : "adjustment", // increase = purchase, decrease = adjustment
+          quantity: Math.abs(diff),
+          costPrice: Number(form.get("costPrice")) || currentItem.costPrice,
+          userId: user.id,
+          notes: `Manual stock ${diff > 0 ? "increase" : "decrease"} by admin`,
+        });
+      }
+    }
+
+    // ------------------- Handle image upload -------------------
     if (file) {
       const buffer = Buffer.from(await file.arrayBuffer());
       updateData.photo = await uploadToCloudinary(buffer);
     }
 
-    const updatedItem = await Item.findByIdAndUpdate(
-      id,
-      { $set: updateData },
-      { new: true }
-    );
+    // ------------------- Update Item -------------------
+    const updatedItem = await Item.findByIdAndUpdate(id, { $set: updateData }, { new: true });
 
-    if (!updatedItem) {
-      return Response.json({ error: "Item not found" }, { status: 404 });
-    }
-
+    // ------------------- Log Activity -------------------
     await ActivityLog.create({
       userId: user.id,
       action: "update_item",
-      meta: { itemId: id, updatedFields: Object.keys(updateData) },
-    });
-
-    return Response.json(updatedItem);
-  } catch (err: any) {
-    return Response.json({ error: err.message }, { status: 500 });
-  }
-}
-
-/* =====================================
-   DELETE ITEM
-====================================== */
-export async function DELETE(
-  req: Request,
-  context: { params: Promise<{ id: string }> }
-) {
-  await dbConnect();
-
-  try {
-    const { id } = await context.params;
-    const user = await verifyTokenFromReq(req, "admin");
-
-    const item = await Item.findByIdAndDelete(id);
-
-    if (!item) {
-      return Response.json({ error: "Item not found" }, { status: 404 });
-    }
-
-    await ActivityLog.create({
-      userId: user.id,
-      action: "delete_item",
       meta: {
         itemId: id,
-        name: item.name,
-        category: item.category,
-        brand: item.brand,
+        updatedFields: Object.keys(updateData),
+        stockChange: updateData.stock ? updateData.stock - currentItem.stock : 0,
       },
     });
 
-    return Response.json({ success: true });
+    return Response.json(updatedItem);
   } catch (err: any) {
     return Response.json({ error: err.message }, { status: 500 });
   }

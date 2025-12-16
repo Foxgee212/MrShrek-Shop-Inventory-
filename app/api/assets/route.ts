@@ -4,6 +4,14 @@ import Expense from "@/models/Expense";
 import ActivityLog from "@/models/ActivityLog";
 import { verifyTokenFromReq } from "@/lib/auth";
 
+
+export type AuthUser = {
+  id: string;
+  role: "admin" | "staff";
+  email?: string;
+};
+
+
 export async function GET(req: Request) {
   await dbConnect();
 
@@ -58,13 +66,12 @@ export async function GET(req: Request) {
   }
 }
 
-
-
 export async function POST(req: Request) {
   await dbConnect();
 
   try {
     const admin = await verifyTokenFromReq(req, "admin");
+
     if (!admin) {
       return new Response("Unauthorized", { status: 401 });
     }
@@ -77,12 +84,12 @@ export async function POST(req: Request) {
       supplier,
       location,
       usefulLifeMonths,
-      notes,
+      salvageValue = 0,
     } = await req.json();
 
-    if (!name || !category || !PurchaseCost) {
+    if (!name || !category || !PurchaseCost || !location || !usefulLifeMonths) {
       return new Response(
-        JSON.stringify({ error: "Name, category and purchase cost are required" }),
+        JSON.stringify({ error: "Missing required fields" }),
         { status: 400 }
       );
     }
@@ -94,12 +101,15 @@ export async function POST(req: Request) {
       name,
       category,
       PurchaseCost,
+      PurchaseDate: new Date(),
       quantity,
       supplier,
       location,
+      condition: "new",
+      status: "active",
       usefulLifeMonths,
-      createdBy: admin.id,
-      notes,
+      salvageValue,
+      createdby: admin.id,
     });
 
     // 2️⃣ Create Expense (reduces net cash)

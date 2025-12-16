@@ -152,7 +152,7 @@ export default function AssetManagementPage() {
           <div className="bg-white rounded-xl w-full max-w-lg p-6 space-y-4">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-bold">Add Asset</h2>
-              <button onClick={() => setShowModal(false)}><X /></button>
+              <button onClick={() => setShowModal(false)} aria-label="Close modal"><X /></button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

@@ -101,7 +101,7 @@ export async function POST(req: Request) {
         itemId: newItem._id,
         type: "purchase",
         quantity: stock,
-        unitCost: costPrice,
+        costPrice: costPrice,
         userId: user.id,
       });
     }
