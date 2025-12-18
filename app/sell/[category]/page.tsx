@@ -1,70 +1,41 @@
-"use client";
-
-import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
 import Link from "next/link";
+import { getCategories, normalize } from "@/lib/categories";
+import { notFound } from "next/navigation";
 
-type Brand = {
-  name: string;
-  hasOutOfStock: boolean;
-};
+interface BrandPageProps {
+  params: Promise<{ category: string }>;
+}
 
-type Category = {
-  name: string;
-  hasOutOfStock: boolean;
-  imageUrl: string;
-  brands: Brand[];
-};
+export default async function BrandPage({ params }: BrandPageProps) {
+  const { category } = await params;
 
-type CategoriesResponse = {
-  categories: Category[];
-};
+  const categoryParam = category ? decodeURIComponent(category) : null;
 
-export default function BrandPage() {
-  const params = useParams();
-  const category = decodeURIComponent(params.category as string);
+  if (!categoryParam) {
+    notFound();
+  }
 
-  const [brands, setBrands] = useState<Brand[]>([]);
+  const categories = await getCategories();
 
-  useEffect(() => {
-    async function loadBrands() {
-      try {
-        const res = await fetch("/api/items/categories-with-stock");
-        const data: CategoriesResponse = await res.json();
+  const selectedCategory = categories.find(
+    (c) => normalize(c.name) === normalize(categoryParam)
+  );
 
-        if (!Array.isArray(data.categories)) {
-          console.error("Invalid API response", data);
-          return;
-        }
+  if (!selectedCategory) notFound();
 
-        const normalize = (str: string) =>
-          str.replace(/\s+/g, " ").trim().toLowerCase();
-
-        const selectedCategory = data.categories.find(
-          (c) => normalize(c.name) === normalize(category)
-        );
-
-        setBrands(selectedCategory?.brands ?? []);
-      } catch (err) {
-        console.error("Error fetching brand data", err);
-      }
-    }
-
-    loadBrands();
-  }, [category]);
+  const brands = selectedCategory.brands ?? [];
 
   return (
     <div className="p-6 grid grid-cols-2 md:grid-cols-3 gap-4">
       {brands.map((brand) => (
         <Link
           key={brand.name}
-          href={`/sell/${encodeURIComponent(category)}/${encodeURIComponent(brand.name)}`}
+          href={`/sell/${encodeURIComponent(categoryParam)}/${encodeURIComponent(brand.name)}`}
           className="relative bg-white rounded-lg shadow p-6 text-center hover:bg-gray-100 transition"
         >
           {brand.hasOutOfStock && (
             <span className="absolute top-2 right-2 w-3 h-3 rounded-full bg-red-600 animate-pulse" />
           )}
-
           <div className="text-lg font-bold">{brand.name}</div>
         </Link>
       ))}

@@ -194,7 +194,7 @@ export default function AdminDashboard() {
           </Link>
 
           <Link
-            href="/assets"
+            href="/asset-management"
             className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50"
           >
             <h3 className="text-xl font-bold">Asset Management</h3>
