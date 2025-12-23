@@ -163,6 +163,7 @@ export default function AssetManagementPage() {
               <th className="p-3">Location</th>
               <th className="p-3">Status</th>
               <th className="p-3 text-right">Actions</th>
+              <th className="p-3">Disposal</th>
             </tr>
           </thead>
           <tbody>
@@ -177,13 +178,16 @@ export default function AssetManagementPage() {
                 <td className="p-3 text-center">{currency(asset.totalValue)}</td>
                 <td className="p-3">{asset.location || "—"}</td>
                 <td className="p-3 capitalize">{asset.status}</td>
-                <td className="p-3 text-right space-x-2">
+                <td className="p-3 text-right space-x-3">
                   <button aria-label="edit" onClick={() => openEdit(asset)} className="text-blue-600">
                     <Pencil size={16} />
                   </button>
                   <button aria-label="delete" onClick={() => deleteAsset(asset)} className="text-red-600">
                     <Trash2 size={16} />
                   </button>
+                </td>
+                <td className="p-3 text-center">
+                  <button aria-label="sale">Sell</button>
                 </td>
               </tr>
             ))}
