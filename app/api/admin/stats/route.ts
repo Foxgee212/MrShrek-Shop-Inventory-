@@ -1,10 +1,10 @@
-import Item from "../../../../models/Item";
-import User from "../../../../models/User";
-import Sale from "../../../../models/Sale";
-import Expense from "../../../../models/Expense";
-import InventoryTransaction from "../../../../models/InventoryTransaction";
-import Assets from "@/models/Assets";
-import CapitalTransaction from "@/models/CapitalTransaction"; // <--- new
+import Item from "@/models/Item";
+import User from "@/models/User";
+import Sale from "@/models/Sale";
+import Expense from "@/models/Expense";
+import InventoryTransaction from "@/models/InventoryTransaction";
+import CapitalExpenditure from "@/models/CapitalExpenditure";
+import CapitalTransaction from "@/models/CapitalTransaction";
 import { dbConnect } from "../../../../lib/dbConnect";
 
 export const dynamic = "force-dynamic";
@@ -18,35 +18,6 @@ export async function GET() {
 
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  // ------------------- Assets -------------------
-  const assets = await Assets.find({ status: "active" });
-  const totalAssets = assets.length;
-  const totalAssetValue = assets.reduce((sum, a) => sum + a.PurchaseCost * a.quantity, 0);
-
-  // ------------------- Capital Injections -------------------
-  const capitalAgg = await CapitalTransaction.aggregate([
-  {
-    $group: {
-      _id: null,
-      totalInjections: {
-        $sum: {
-          $cond: [{ $eq: ["$type", "injection"] }, "$amount", 0]
-        }
-      },
-      totalWithdrawals: {
-        $sum: {
-          $cond: [{ $eq: ["$type", "withdrawal"] }, "$amount", 0]
-        }
-      }
-    }
-  }
-]);
-
-const totalInjections = capitalAgg[0]?.totalInjections || 0;
-const totalWithdrawals = capitalAgg[0]?.totalWithdrawals || 0;
-const totalCapital = totalInjections - totalWithdrawals;
-
 
   // ------------------- TODAY SALES -------------------
   const todaySalesAgg = await Sale.aggregate([
@@ -62,9 +33,15 @@ const totalCapital = totalInjections - totalWithdrawals;
   const todayRevenue = todaySalesAgg[0]?.totalRevenue || 0;
   const todayCOGS = todaySalesAgg[0]?.totalCOGS || 0;
 
-  // ------------------- TODAY EXPENSES (exclude stock purchases) -------------------
+  // ------------------- TODAY OPERATING EXPENSES (exclude stock & capex) -------------------
   const todayExpensesAgg = await Expense.aggregate([
-    { $match: { createdAt: { $gte: today }, status: "approved", type: { $ne: "stock_purchase" } } },
+    {
+      $match: {
+        createdAt: { $gte: today },
+        status: "approved",
+        type: { $nin: ["stock_purchase", "asset_purchase"] },
+      },
+    },
     { $group: { _id: null, total: { $sum: "$amount" } } },
   ]);
   const todayExpenses = todayExpensesAgg[0]?.total || 0;
@@ -86,9 +63,9 @@ const totalCapital = totalInjections - totalWithdrawals;
   const totalRevenue = totalSalesAgg[0]?.totalRevenue || 0;
   const totalCOGS = totalSalesAgg[0]?.totalCOGS || 0;
 
-  // ------------------- TOTAL EXPENSES -------------------
+  // ------------------- TOTAL OPERATING EXPENSES -------------------
   const totalExpensesAgg = await Expense.aggregate([
-    { $match: { status: "approved", type: { $ne: "stock_purchase" } } },
+    { $match: { status: "approved", type: { $nin: ["stock_purchase", "asset_purchase"] } } },
     { $group: { _id: null, total: { $sum: "$amount" } } },
   ]);
   const totalExpenses = totalExpensesAgg[0]?.total || 0;
@@ -102,9 +79,37 @@ const totalCapital = totalInjections - totalWithdrawals;
 
   const totalProfit = totalRevenue - totalCOGS - totalExpenses - totalStockPurchases;
 
-  // ------------------- NET BALANCE -------------------
-  // include totalCapital here
-  const balance = totalCapital + totalRevenue - totalExpenses - totalStockPurchases;
+  // ------------------- CAPITAL EXPENDITURES -------------------
+  const capExAgg = await CapitalExpenditure.aggregate([
+    { $match: { status: "active" } },
+    {
+      $group: {
+        _id: null,
+        totalCapEx: { $sum: "$amount" },
+        totalAssetValue: { $sum: { $multiply: ["$purchaseCost", "$quantity"] } },
+      },
+    },
+  ]);
+  const totalCapEx = capExAgg[0]?.totalCapEx || 0;
+  const totalAssetValue = capExAgg[0]?.totalAssetValue || 0;
+  const totalAssets = await CapitalExpenditure.countDocuments({ status: "active" });
+
+  // ------------------- CAPITAL TRANSACTIONS -------------------
+  const capitalAgg = await CapitalTransaction.aggregate([
+    {
+      $group: {
+        _id: null,
+        totalInjections: { $sum: { $cond: [{ $eq: ["$type", "injection"] }, "$amount", 0] } },
+        totalWithdrawals: { $sum: { $cond: [{ $eq: ["$type", "withdrawal"] }, "$amount", 0] } },
+      },
+    },
+  ]);
+  const totalInjections = capitalAgg[0]?.totalInjections || 0;
+  const totalWithdrawals = capitalAgg[0]?.totalWithdrawals || 0;
+  const totalCapital = totalInjections - totalWithdrawals;
+
+  // ------------------- NET CASH / BALANCE -------------------
+  const balance = totalCapital - totalCapEx;
 
   return new Response(
     JSON.stringify({
@@ -123,11 +128,12 @@ const totalCapital = totalInjections - totalWithdrawals;
       totalCOGS,
       totalStockPurchases,
       totalProfit,
-      balance,
 
       totalAssets,
       totalAssetValue,
       totalCapital,
+      totalCapEx,
+      balance,
     }),
     { status: 200 }
   );

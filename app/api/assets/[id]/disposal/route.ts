@@ -1,9 +1,8 @@
 import { dbConnect } from "@/lib/dbConnect";
 import Asset from "@/models/Assets";
-import Expense from "@/models/Expense";
+import CapitalExpenditure from "@/models/CapitalExpenditure";
 import ActivityLog from "@/models/ActivityLog";
 import { verifyTokenFromReq } from "@/lib/auth";
-
 
 export async function POST(req: Request, { params }: any) {
   await dbConnect();
@@ -23,13 +22,24 @@ export async function POST(req: Request, { params }: any) {
   asset.disposalAmount = amount;
   await asset.save();
 
-  await Expense.create({
-    type: "asset_disposal",
-    amount: -amount, // cash inflow
+  // Record cash inflow
+  await CapitalExpenditure.create({
+    type: "asset_disposal", // or "inflow"
+    amount: amount, // cash received
     description: `Asset disposal: ${asset.name}`,
-    status: "approved",
-    userId: admin.id,
+    referenceType: "Asset",
+    referenceId: asset._id,
+    createdBy: admin.id,
   });
 
-  return Response.json({ message: "Asset disposed successfully" });
+  // Log activity
+  await ActivityLog.create({
+    userId: admin.id,
+    action: "asset_disposal",
+    entityType: "Asset",
+    entityId: asset._id,
+    meta: { disposalAmount: amount },
+  });
+
+  return new Response(JSON.stringify({ message: "Asset disposed successfully" }), { status: 200 });
 }

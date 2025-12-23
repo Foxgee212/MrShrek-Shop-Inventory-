@@ -54,7 +54,7 @@ const DEFAULT_STATS: Stats = {
 };
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState<Stats>(DEFAULT_STATS);
+  const [stats, setStats] = useState<Stats & { totalCapEx: number}>({...DEFAULT_STATS, totalCapEx: 0});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -96,7 +96,7 @@ export default function AdminDashboard() {
       <div className="p-6 animate-pulse">
         <h1 className="text-3xl font-bold mb-6">Loading Dashboard...</h1>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          {Array.from({ length: 8 }).map((_, i) => (
+          {Array.from({ length: 10 }).map((_, i) => (
             <div key={i} className="h-24 bg-gray-200 rounded" />
           ))}
         </div>
@@ -128,6 +128,8 @@ export default function AdminDashboard() {
           <Card title="Net Capital" value={formatCurrency(stats.totalCapital)} color="bg-purple-500">
             <Link href="/capital" className="underline text-sm">View Capital</Link>
           </Card>
+
+          <Card title="Capital Expenditure" value={formatCurrency(stats.totalCapEx)} color="bg-orange-600" />
 
           <Card title="Net Cash" value={formatCurrency(stats.balance)} color="bg-teal-600" />
         </div>

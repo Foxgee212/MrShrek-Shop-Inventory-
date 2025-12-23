@@ -1,6 +1,6 @@
 import { dbConnect } from "@/lib/dbConnect";
 import Asset from "@/models/Assets";
-import Expense from "@/models/Expense";
+import CapitalExpenditure from "@/models/CapitalExpenditure"
 import ActivityLog from "@/models/ActivityLog";
 import { verifyTokenFromReq } from "@/lib/auth";
 
@@ -111,18 +111,15 @@ export async function POST(req: Request) {
       salvageValue,
       createdby: admin.id,
     });
-
-    // 2️⃣ Create Expense (reduces net cash)
-    await Expense.create({
+    // 2️⃣ Record Capital Expenditure (reduces net cash, does NOT affect profits)
+    await CapitalExpenditure.create({
       type: "asset_purchase",
       amount: totalCost,
-      description: `Asset purchase: ${name}`,
-      status: "approved",
       referenceType: "Asset",
       referenceId: asset._id,
-      userId: admin.id,
+      description: `Asset purchase: ${name}`,
+      createdBy: admin.id,
     });
-
     // 3️⃣ Log activity
     await ActivityLog.create({
       userId: admin.id,
