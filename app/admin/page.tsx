@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+/* ===================== TYPES ===================== */
 type Stats = {
   totalProducts: number;
   lowStock: number;
@@ -27,19 +28,56 @@ type Stats = {
   totalAssetValue: number;
 };
 
+/* ===================== DEFAULT STATE ===================== */
+const DEFAULT_STATS: Stats = {
+  totalProducts: 0,
+  lowStock: 0,
+  totalUsers: 0,
+
+  todayRevenue: 0,
+  todayExpenses: 0,
+  todayCOGS: 0,
+  todayStockPurchases: 0,
+  todayProfit: 0,
+
+  totalRevenue: 0,
+  totalExpenses: 0,
+  totalCOGS: 0,
+  totalStockPurchases: 0,
+  totalProfit: 0,
+
+  balance: 0,
+  totalCapital: 0,
+
+  totalAssets: 0,
+  totalAssetValue: 0,
+};
+
 export default function AdminDashboard() {
-  const [stats, setStats] = useState<Stats | null>(null);
+  const [stats, setStats] = useState<Stats>(DEFAULT_STATS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
+  /* ===================== FORMATTER ===================== */
+  const formatter = new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 0,
+  });
+
+  const formatCurrency = (value?: number | null) =>
+    formatter.format(value ?? 0);
+
+  /* ===================== FETCH STATS ===================== */
   const fetchStats = async () => {
     try {
       const res = await fetch("/api/admin/stats", { cache: "no-store" });
       if (!res.ok) throw new Error("Failed to load stats");
+
       const data = await res.json();
-      setStats(data);
+      setStats({ ...DEFAULT_STATS, ...data });
       setError(false);
-    } catch (err) {
+    } catch {
       setError(true);
     } finally {
       setLoading(false);
@@ -52,196 +90,142 @@ export default function AdminDashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  const formatCurrency = (num: number) =>
-    `₦${num.toLocaleString(undefined, { minimumFractionDigits: 0 })}`;
-
+  /* ===================== LOADING ===================== */
   if (loading) {
     return (
       <div className="p-6 animate-pulse">
         <h1 className="text-3xl font-bold mb-6">Loading Dashboard...</h1>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="h-24 bg-gray-200 rounded"></div>
+            <div key={i} className="h-24 bg-gray-200 rounded" />
           ))}
         </div>
       </div>
     );
   }
 
-  if (error || !stats) {
+  /* ===================== ERROR ===================== */
+  if (error) {
     return (
       <div className="p-6">
         <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
-        <p className="text-red-600 bg-red-100 p-3 rounded">
-          Could not load stats. Try refreshing.
-        </p>
+        <div className="bg-red-100 text-red-700 p-4 rounded">
+          Could not load dashboard data. Please refresh the page.
+        </div>
       </div>
     );
   }
 
+  /* ===================== UI ===================== */
   return (
-    <div className="p-6 space-y-8">
-      <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
+    <div className="p-6 space-y-10">
+      <h1 className="text-3xl font-bold">Admin Dashboard</h1>
 
-      {/* ====================== CAPITAL SECTION ====================== */}
-      <section className="space-y-4">
-        <h2 className="text-2xl font-semibold">Capital</h2>
+      {/* ===================== CAPITAL ===================== */}
+      <section>
+        <h2 className="text-2xl font-semibold mb-4">Capital</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="p-4 bg-purple-500 text-white rounded shadow">
-            <h3 className="text-xl">Net Capital</h3>
-            <p className="text-3xl font-bold">{formatCurrency(stats.totalCapital)}</p>
-            <Link href="/capital" className="text-sm underline hover:text-gray-200">
-              View Capital Transactions
-            </Link>
-          </div>
+          <Card title="Net Capital" value={formatCurrency(stats.totalCapital)} color="bg-purple-500">
+            <Link href="/capital" className="underline text-sm">View Capital</Link>
+          </Card>
 
-          <div className="p-4 bg-teal-600 text-white rounded shadow">
-            <h3 className="text-xl">Net Cash</h3>
-            <p className="text-3xl font-bold">{formatCurrency(stats.balance)}</p>
-          </div>
+          <Card title="Net Cash" value={formatCurrency(stats.balance)} color="bg-teal-600" />
         </div>
       </section>
 
-      {/* ====================== FINANCE / EXPENSE SECTION ====================== */}
-      <section className="space-y-4">
-        <h2 className="text-2xl font-semibold">Finance / Expenses</h2>
+      {/* ===================== FINANCE ===================== */}
+      <section>
+        <h2 className="text-2xl font-semibold mb-4">Finance</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="p-4 bg-yellow-500 text-white rounded shadow">
-            <h3 className="text-xl">Today Revenue</h3>
-            <p className="text-3xl font-bold">{formatCurrency(stats.todayRevenue)}</p>
-          </div>
-
-          <div className="p-4 bg-red-500 text-white rounded shadow">
-            <h3 className="text-xl">Today Expenses</h3>
-            <p className="text-3xl font-bold">{formatCurrency(stats.todayExpenses)}</p>
-          </div>
-
-          <div className="p-4 bg-pink-500 text-white rounded shadow">
-            <h3 className="text-xl">Today Profit</h3>
-            <p className="text-3xl font-bold">{formatCurrency(stats.todayProfit)}</p>
-          </div>
-
-          <div className="p-4 bg-indigo-500 text-white rounded shadow">
-            <h3 className="text-xl">Total Revenue</h3>
-            <p className="text-3xl font-bold">{formatCurrency(stats.totalRevenue)}</p>
-          </div>
-
-          <div className="p-4 bg-orange-500 text-white rounded shadow">
-            <h3 className="text-xl">Total Expenses</h3>
-            <p className="text-3xl font-bold">{formatCurrency(stats.totalExpenses)}</p>
-          </div>
-
-          <div className="p-4 bg-teal-500 text-white rounded shadow">
-            <h3 className="text-xl">Total Profit</h3>
-            <p className="text-3xl font-bold">{formatCurrency(stats.totalProfit)}</p>
-          </div>
+          <Card title="Today Revenue" value={formatCurrency(stats.todayRevenue)} color="bg-yellow-500" />
+          <Card title="Today Expenses" value={formatCurrency(stats.todayExpenses)} color="bg-red-500" />
+          <Card title="Today Profit" value={formatCurrency(stats.todayProfit)} color="bg-pink-500" />
+          <Card title="Total Revenue" value={formatCurrency(stats.totalRevenue)} color="bg-indigo-500" />
+          <Card title="Total Expenses" value={formatCurrency(stats.totalExpenses)} color="bg-orange-500" />
+          <Card title="Total Profit" value={formatCurrency(stats.totalProfit)} color="bg-teal-500" />
         </div>
       </section>
 
-      {/* ====================== INVENTORY SECTION ====================== */}
-      <section className="space-y-4">
-        <h2 className="text-2xl font-semibold">Inventory & Assets</h2>
+      {/* ===================== INVENTORY & ASSETS ===================== */}
+      <section>
+        <h2 className="text-2xl font-semibold mb-4">Inventory & Assets</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="p-4 bg-blue-500 text-white rounded shadow">
-            <h3 className="text-xl">Total Products</h3>
-            <p className="text-3xl font-bold">{stats.totalProducts}</p>
-          </div>
-
-          <div className="p-4 bg-red-500 text-white rounded shadow">
-            <h3 className="text-xl">Low Stock Items</h3>
-            <p className="text-3xl font-bold">{stats.lowStock}</p>
-          </div>
-
-          <div className="p-4 bg-gray-700 text-white rounded shadow">
-            <h3 className="text-xl">Total Assets</h3>
-            <p className="text-3xl font-bold">{stats.totalAssets}</p>
-            <p className="text-sm">Value: {formatCurrency(stats.totalAssetValue)}</p>
-          </div>
-
-          <div className="p-4 bg-indigo-400 text-white rounded shadow">
-            <h3 className="text-xl">Stock Purchases</h3>
-            <p className="text-3xl font-bold">{formatCurrency(stats.totalStockPurchases)}</p>
-          </div>
+          <Card title="Total Products" value={stats.totalProducts} color="bg-blue-500" />
+          <Card title="Low Stock Items" value={stats.lowStock} color="bg-red-600" />
+          <Card
+            title="Total Assets"
+            value={stats.totalAssets}
+            color="bg-gray-700"
+            sub={`Value: ${formatCurrency(stats.totalAssetValue)}`}
+          />
+          <Card
+            title="Stock Purchases"
+            value={formatCurrency(stats.totalStockPurchases)}
+            color="bg-indigo-400"
+          />
         </div>
       </section>
 
-      {/* ====================== USERS & MANAGEMENT LINKS ====================== */}
-      <section className="space-y-4">
-        <h2 className="text-2xl font-semibold">Management</h2>
+      {/* ===================== MANAGEMENT ===================== */}
+      <section>
+        <h2 className="text-2xl font-semibold mb-4">Management</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link
-            href="/store"
-            className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50"
-          >
-            <h3 className="text-xl font-bold">Inventory Management</h3>
-            <p>Add, edit, and delete products.</p>
-          </Link>
-
-          <Link
-            href="/inventory-transaction"
-            className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50"
-          >
-            <h3 className="text-xl font-bold">Inventory Transactions</h3>
-            <p>Track stock purchases and inventory adjustments.</p>
-          </Link>
-
-          <Link
-            href="/capital"
-            className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50"
-          >
-            <h3 className="text-xl font-bold">Capital Management</h3>
-            <p>Record and manage business capital injections.</p>
-          </Link>
-
-          <Link
-            href="/asset-management"
-            className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50"
-          >
-            <h3 className="text-xl font-bold">Asset Management</h3>
-            <p>Track and add business assets.</p>
-          </Link>
-
-          <Link
-            href="/users"
-            className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50"
-          >
-            <h3 className="text-xl font-bold">User Management</h3>
-            <p>Add or remove staff accounts (admin only).</p>
-          </Link>
-
-          <Link
-            href="/purchase-orders"
-            className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50"
-          >
-            <h3 className="text-xl font-bold">Purchase Orders</h3>
-            <p>Record new stock you bought.</p>
-          </Link>
-
-          <Link
-            href="/expenses"
-            className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50"
-          >
-            <h3 className="text-xl font-bold">Expenses</h3>
-            <p>Record withdrawals and miscellaneous expenses.</p>
-          </Link>
-
-          <Link
-            href="/reports"
-            className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50"
-          >
-            <h3 className="text-xl font-bold">Reports</h3>
-            <p>Daily/weekly/monthly sales breakdown.</p>
-          </Link>
-
-          <Link
-            href="/sell"
-            className="p-6 text-gray-800 bg-white shadow rounded border hover:bg-gray-50"
-          >
-            <h3 className="text-xl font-bold">Go to POS</h3>
-            <p>Start selling items now.</p>
-          </Link>
+          <NavCard href="/store" title="Inventory Management" desc="Manage products" />
+          <NavCard href="/inventory-transaction" title="Inventory Transactions" desc="Track stock movement" />
+          <NavCard href="/capital" title="Capital Management" desc="Capital injections" />
+          <NavCard href="/asset-management" title="Asset Management" desc="Business assets" />
+          <NavCard href="/users" title="User Management" desc="Staff accounts" />
+          <NavCard href="/purchase-orders" title="Purchase Orders" desc="Record stock purchases" />
+          <NavCard href="/expenses" title="Expenses" desc="Withdrawals & expenses" />
+          <NavCard href="/reports" title="Reports" desc="Sales reports" />
+          <NavCard href="/sell" title="POS" desc="Start selling" />
         </div>
       </section>
     </div>
+  );
+}
+
+/* ===================== COMPONENTS ===================== */
+
+function Card({
+  title,
+  value,
+  color,
+  sub,
+  children,
+}: {
+  title: string;
+  value: React.ReactNode;
+  color: string;
+  sub?: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className={`${color} text-white p-4 rounded shadow`}>
+      <h3 className="text-lg">{title}</h3>
+      <p className="text-3xl font-bold">{value}</p>
+      {sub && <p className="text-sm mt-1">{sub}</p>}
+      {children && <div className="mt-2">{children}</div>}
+    </div>
+  );
+}
+
+function NavCard({
+  href,
+  title,
+  desc,
+}: {
+  href: string;
+  title: string;
+  desc: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="p-6 bg-white shadow rounded border hover:bg-gray-50"
+    >
+      <h3 className="text-xl font-bold">{title}</h3>
+      <p>{desc}</p>
+    </Link>
   );
 }

@@ -13,6 +13,8 @@ export interface IAsset extends Document {
   usefulLifeMonths: number;
   salvageValue: number;
   createdby: mongoose.Types.ObjectId;
+  disposedAt: Date;
+  disposalAmount: number;
 }
 
 const AssetSchema = new mongoose.Schema<IAsset>({
@@ -27,6 +29,8 @@ const AssetSchema = new mongoose.Schema<IAsset>({
   status: { type: String },
   usefulLifeMonths: { type: Number, required: true },
   salvageValue: { type: Number },
+  disposedAt: { type: Date },
+  disposalAmount: { type: Number },
   createdby: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
 });
 
