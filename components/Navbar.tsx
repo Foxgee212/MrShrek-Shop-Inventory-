@@ -13,7 +13,7 @@ export default function Navbar({ role }: { role: "admin" | "staff" }) {
 
   return (
     <nav className="bg-white shadow-md p-4 flex justify-between items-center">
-      <Link href="/" className="font-bold text-xl">
+      <Link href="/sell" className="font-bold text-xl">
         MrShrek Shop
       </Link>
 

@@ -13,7 +13,7 @@ export type Category = {
 // Fetch categories directly from your API or database
 export async function getCategories(): Promise<Category[]> {
   try {
-    const res = await fetch(`http://localhost:3000/api/items/categories-with-stock`, {
+    const res = await fetch(`/api/items/categories-with-stock`, {
       cache: "no-store", // always fresh data for SSR
     });
 
