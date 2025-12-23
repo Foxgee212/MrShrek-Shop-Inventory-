@@ -3,8 +3,8 @@ import mongoose, { Document } from "mongoose";
 export interface IAsset extends Document {
   name: string;
   category: string;
-  PurchaseCost: number;
-  PurchaseDate: Date;
+  purchaseCost: number;
+  purchaseDate: Date;
   quantity: number;
   location: string;
   condition: string;
@@ -18,10 +18,10 @@ export interface IAsset extends Document {
 const AssetSchema = new mongoose.Schema<IAsset>({
   name: { type: String, required: true },
   category: { type: String, required: true },
-  PurchaseCost: { type: Number, required: true },
-  PurchaseDate: { type: Date },
+  purchaseCost: { type: Number, required: true },
+  purchaseDate: { type: Date },
   quantity: { type: Number, required: true },
-  location: { type: String, required: true },
+  location: { type: String},
   condition: { type: String },
   supplier: { type: String },
   status: { type: String },

@@ -48,15 +48,25 @@ export default function AssetManagementPage() {
   }, []);
 
   async function submitAsset() {
+    if (!form.name || !form.category || !form.location || !form.usefulLifeMonths) {
+      alert("Please fill all required fields");
+      return;
+    }
+
     const res = await fetch("/api/assets", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        ...form,
+        name: form.name,
+        category: form.category,
+        purchaseCost: Number(form.purchaseCost), // ✅ FIXED
         quantity: Number(form.quantity),
-        purchaseCost: Number(form.purchaseCost),
-        usefulLifeMonths: form.usefulLifeMonths ? Number(form.usefulLifeMonths) : undefined,
+        supplier: form.supplier || undefined,
+        location: form.location, // REQUIRED
+        usefulLifeMonths: Number(form.usefulLifeMonths), // REQUIRED
+        salvageValue: 0,
       }),
+
     });
 
     if (!res.ok) {
@@ -156,13 +166,13 @@ export default function AssetManagementPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <input placeholder="Asset Name" className="border p-2 rounded" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
-              <input placeholder="Category" className="border p-2 rounded" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} />
-              <input type="number" placeholder="Quantity" className="border p-2 rounded" value={form.quantity} onChange={e => setForm({ ...form, quantity: Number(e.target.value) })} />
-              <input type="number" placeholder="Purchase Cost" className="border p-2 rounded" value={form.purchaseCost} onChange={e => setForm({ ...form, purchaseCost: Number(e.target.value) })} />
+              <input required placeholder="Asset Name" className="border p-2 rounded" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+              <input required placeholder="Category" className="border p-2 rounded" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} />
+              <input required type="number" placeholder="Quantity" className="border p-2 rounded" value={form.quantity} onChange={e => setForm({ ...form, quantity: Number(e.target.value) })} />
+              <input required type="number" placeholder="Purchase Cost" className="border p-2 rounded" value={form.purchaseCost} onChange={e => setForm({ ...form, purchaseCost: Number(e.target.value) })} />
               <input placeholder="Supplier" className="border p-2 rounded" value={form.supplier} onChange={e => setForm({ ...form, supplier: e.target.value })} />
               <input placeholder="Location" className="border p-2 rounded" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} />
-              <input type="number" placeholder="Useful Life (months)" className="border p-2 rounded md:col-span-2" value={form.usefulLifeMonths} onChange={e => setForm({ ...form, usefulLifeMonths: e.target.value })} />
+              <input required type="number" placeholder="Useful Life (months)" className="border p-2 rounded md:col-span-2" value={form.usefulLifeMonths} onChange={e => setForm({ ...form, usefulLifeMonths: e.target.value })} />
               <textarea placeholder="Notes" className="border p-2 rounded md:col-span-2" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
             </div>
 

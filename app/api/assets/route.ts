@@ -39,8 +39,8 @@ export async function GET(req: Request) {
       name: asset.name,
       category: asset.category,
       quantity: asset.quantity,
-      purchaseCost: asset.PurchaseCost,
-      totalValue: asset.PurchaseCost * asset.quantity,
+      purchaseCost: asset.purchaseCost,
+      totalValue: asset.purchaseCost * asset.quantity,
       supplier: asset.supplier,
       location: asset.location,
       status: asset.status,
@@ -79,7 +79,7 @@ export async function POST(req: Request) {
     const {
       name,
       category,
-      PurchaseCost,
+      purchaseCost,
       quantity = 1,
       supplier,
       location,
@@ -87,21 +87,21 @@ export async function POST(req: Request) {
       salvageValue = 0,
     } = await req.json();
 
-    if (!name || !category || !PurchaseCost || !location || !usefulLifeMonths) {
+    if (!name || !category || !purchaseCost || !location || !usefulLifeMonths) {
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
         { status: 400 }
       );
     }
 
-    const totalCost = PurchaseCost * quantity;
+    const totalCost = purchaseCost * quantity;
 
     // 1️⃣ Create Asset
     const asset = await Asset.create({
       name,
       category,
-      PurchaseCost,
-      PurchaseDate: new Date(),
+      purchaseCost,
+      purchaseDate: new Date(),
       quantity,
       supplier,
       location,
