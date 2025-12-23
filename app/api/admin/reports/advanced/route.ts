@@ -1,6 +1,8 @@
 import Item from "../../../../../models/Item";
 import Sale from "../../../../../models/Sale";
 import Expense from "../../../../../models/Expense";
+import InventoryTransaction from "../../../../../models/InventoryTransaction";
+import CapitalExpenditure from "../../../../../models/CapitalExpenditure";
 import { dbConnect } from "../../../../../lib/dbConnect";
 
 export const dynamic = "force-dynamic";
@@ -14,19 +16,19 @@ export async function GET() {
   const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const startOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1);
   const startOfYear = (d: Date) => new Date(d.getFullYear(), 0, 1);
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
   const today = startOfDay(now);
   const monthStart = startOfMonth(now);
   const yearStart = startOfYear(now);
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
   // ---------------------- Helper functions ----------------------
   const sumSales = async (date: Date) => {
     const data = await Sale.aggregate([
       { $match: { createdAt: { $gte: date }, status: "completed" } },
-      { $group: { _id: null, totalRevenue: { $sum: "$totalRevenue" }, totalCost: { $sum: "$totalCost" } } },
+      { $group: { _id: null, totalRevenue: { $sum: "$totalRevenue" }, totalCost: { $sum: "$totalCost" }, count: { $sum: 1 } } },
     ]);
-    return data[0] || { totalRevenue: 0, totalCost: 0 };
+    return data[0] || { totalRevenue: 0, totalCost: 0, count: 0 };
   };
 
   const sumExpenses = async (date: Date) => {
@@ -35,7 +37,7 @@ export async function GET() {
         $match: { 
           createdAt: { $gte: date }, 
           status: "approved", 
-          type: { $ne: "stock_purchase" } // exclude stock purchases
+          type: { $nin: ["stock_purchase", "asset_purchase"] } // exclude stock & CapEx
         } 
       },
       { $group: { _id: null, total: { $sum: "$amount" } } },
@@ -43,24 +45,56 @@ export async function GET() {
     return data[0]?.total || 0;
   };
 
-  // ---------------------- BASIC TOTALS ----------------------
-  const todayData = await sumSales(today);
-  const todayExpenses = await sumExpenses(today);
+  const sumStockPurchases = async (date: Date) => {
+    const data = await InventoryTransaction.aggregate([
+      { $match: { createdAt: { $gte: date }, type: "purchase" } },
+      { $group: { _id: null, total: { $sum: { $multiply: ["$quantity", "$costPrice"] } } } },
+    ]);
+    return data[0]?.total || 0;
+  };
 
-  const monthlyData = await sumSales(thirtyDaysAgo);
-  const totalData = await sumSales(new Date(0));
-  const totalExpenses = await sumExpenses(new Date(0));
+  const sumCapEx = async (date: Date) => {
+    const data = await CapitalExpenditure.aggregate([
+      { $match: { createdAt: { $gte: date } } },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+    return data[0]?.total || 0;
+  };
 
-  const totalRevenue = totalData.totalRevenue;
-  const totalCOGS = totalData.totalCost;
-  const netCash = totalRevenue - totalCOGS - totalExpenses;
+  // ---------------------- PERIOD AGGREGATES ----------------------
+  const periods = {
+    today,
+    monthStart,
+    yearStart,
+    all: new Date(0),
+  };
+
+  const results: any = {};
+
+  for (const [key, date] of Object.entries(periods)) {
+    const sales = await sumSales(date);
+    const expenses = await sumExpenses(date);
+    const stockPurchases = await sumStockPurchases(date);
+    const capEx = await sumCapEx(date);
+
+    results[key] = {
+      revenue: sales.totalRevenue,
+      COGS: sales.totalCost,
+      operatingExpenses: expenses,
+      stockPurchases,
+      capEx,
+      profit: sales.totalRevenue - sales.totalCost - expenses, // P&L profit
+      netCash: sales.totalRevenue - sales.totalCost - expenses - stockPurchases - capEx, // Cashflow
+      salesCount: sales.count,
+    };
+  }
 
   // ---------------------- BEST-SELLING ITEMS ----------------------
-  // Only show items that are currently out-of-stock
   const bestSellingItems = await Sale.aggregate([
     { $match: { status: "completed" } },
     { $group: { _id: "$itemId", totalQty: { $sum: "$quantity" }, totalRevenue: { $sum: "$totalRevenue" } } },
     { $sort: { totalQty: -1 } },
+    { $limit: 10 },
     {
       $lookup: {
         from: "items",
@@ -70,8 +104,6 @@ export async function GET() {
       },
     },
     { $unwind: "$item" },
-    { $match: { "item.stock": { $lte: 0 } } }, // only sold-out items
-    { $limit: 10 },
   ]);
 
   // ---------------------- SALES BY CATEGORY ----------------------
@@ -96,35 +128,23 @@ export async function GET() {
     { $sort: { totalRevenue: -1 } },
   ]);
 
-  // ---------------------- DAILY SALES / EXPENSES (last 30 days) ----------------------
+  // ---------------------- DAILY SALES & EXPENSES (last 30 days) ----------------------
   const dailySales = await Sale.aggregate([
     { $match: { createdAt: { $gte: thirtyDaysAgo }, status: "completed" } },
-    {
-      $group: {
-        _id: {
-          day: { $dayOfMonth: "$createdAt" },
-          month: { $month: "$createdAt" },
-          year: { $year: "$createdAt" },
-        },
+    { $group: {
+        _id: { day: { $dayOfMonth: "$createdAt" }, month: { $month: "$createdAt" }, year: { $year: "$createdAt" } },
         totalRevenue: { $sum: "$totalRevenue" },
         totalCost: { $sum: "$totalCost" },
-      },
-    },
+      } },
     { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } },
   ]);
 
   const dailyExpenses = await Expense.aggregate([
-    { $match: { createdAt: { $gte: thirtyDaysAgo }, status: "approved", type: { $ne: "stock_purchase" } } },
-    {
-      $group: {
-        _id: {
-          day: { $dayOfMonth: "$createdAt" },
-          month: { $month: "$createdAt" },
-          year: { $year: "$createdAt" },
-        },
+    { $match: { createdAt: { $gte: thirtyDaysAgo }, status: "approved", type: { $nin: ["stock_purchase", "asset_purchase"] } } },
+    { $group: {
+        _id: { day: { $dayOfMonth: "$createdAt" }, month: { $month: "$createdAt" }, year: { $year: "$createdAt" } },
         total: { $sum: "$amount" },
-      },
-    },
+      } },
     { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } },
   ]);
 
@@ -142,14 +162,7 @@ export async function GET() {
   });
 
   return Response.json({
-    today: { revenue: todayData.totalRevenue, COGS: todayData.totalCost, expenses: todayExpenses },
-    monthly: { revenue: monthlyData.totalRevenue, COGS: monthlyData.totalCost },
-    totalRevenue,
-    totalCOGS,
-    totalExpenses,
-    netCash,
-    totalSalesCount: await Sale.countDocuments({ status: "completed" }),
-
+    periods: results,
     bestSellingItems,
     categorySales,
     dailySales,

@@ -1,6 +1,7 @@
 import Item from "@/models/Item";
 import User from "@/models/User";
 import Sale from "@/models/Sale";
+import Assets from "@/models/Assets";
 import Expense from "@/models/Expense";
 import InventoryTransaction from "@/models/InventoryTransaction";
 import CapitalExpenditure from "@/models/CapitalExpenditure";
@@ -81,18 +82,32 @@ export async function GET() {
 
   // ------------------- CAPITAL EXPENDITURES -------------------
   const capExAgg = await CapitalExpenditure.aggregate([
-    { $match: { status: "active" } },
     {
       $group: {
         _id: null,
         totalCapEx: { $sum: "$amount" },
-        totalAssetValue: { $sum: { $multiply: ["$purchaseCost", "$quantity"] } },
       },
     },
   ]);
   const totalCapEx = capExAgg[0]?.totalCapEx || 0;
-  const totalAssetValue = capExAgg[0]?.totalAssetValue || 0;
-  const totalAssets = await CapitalExpenditure.countDocuments({ status: "active" });
+
+  // ------------------- ASSETS (BALANCE SHEET) -------------------
+const assetAgg = await Assets.aggregate([
+  { $match: { status: "active" } },
+  {
+    $group: {
+      _id: null,
+      totalAssetValue: {
+        $sum: { $multiply: ["$purchaseCost", "$quantity"] },
+      },
+      totalAssets: { $sum: 1 },
+    },
+  },
+]);
+
+const totalAssetValue = assetAgg[0]?.totalAssetValue || 0;
+const totalAssets = assetAgg[0]?.totalAssets || 0;
+
 
   // ------------------- CAPITAL TRANSACTIONS -------------------
   const capitalAgg = await CapitalTransaction.aggregate([
